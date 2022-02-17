@@ -1,0 +1,65 @@
+// ******************************************************************************
+// * This is an automatically generated file containing the ribbon resource for *
+// * your application.                                                          *
+// ******************************************************************************
+
+#include ".\RibbonUI.h"
+
+STRINGTABLE 
+BEGIN
+    cmdTab_Home_LabelTitle_RESID L"Home" /* LabelTitle cmdTab_Home_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    cmdTab_Tab_LabelTitle_RESID L"Tab" /* LabelTitle cmdTab_Tab_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    cmdGroup_File_LabelTitle_RESID L"File" /* LabelTitle cmdGroup_File_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    cmdGroup_Projection_LabelTitle_RESID L"Projection" /* LabelTitle cmdGroup_Projection_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    cmdFileMenu_LabelTitle_RESID L"File" /* LabelTitle cmdFileMenu_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    ID_LOADDATA_LabelTitle_RESID L"Load..." /* LabelTitle ID_LOADDATA_LabelTitle_RESID: (null) */
+END
+
+ID_LOADDATA_SmallImages_RESID    BITMAP    "UI\\OpenFileL.bmp" /* SmallImages ID_LOADDATA_SmallImages_RESID: (null) */
+ID_LOADDATA_LargeImages_RESID    BITMAP    "UI\\OpenFileL.bmp" /* LargeImages ID_LOADDATA_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    ID_CLEARALL_LabelTitle_RESID L"Clear All" /* LabelTitle ID_CLEARALL_LabelTitle_RESID: (null) */
+END
+
+ID_CLEARALL_SmallImages_RESID    BITMAP    "UI\\Remove.bmp" /* SmallImages ID_CLEARALL_SmallImages_RESID: (null) */
+ID_CLEARALL_LargeImages_RESID    BITMAP    "UI\\Remove.bmp" /* LargeImages ID_CLEARALL_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    ID_SWITCHPROJ_LabelTitle_RESID L"Switch" /* LabelTitle ID_SWITCHPROJ_LabelTitle_RESID: (null) */
+END
+
+ID_SWITCHPROJ_LargeImages_RESID    IMAGE    "UI\\Switch.png" /* LargeImages ID_SWITCHPROJ_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    ID_EXIT_LabelTitle_RESID L"Exit" /* LabelTitle ID_EXIT_LabelTitle_RESID: (null) */
+END
+
+ID_EXIT_LargeImages_RESID    IMAGE    "UI\\exit.png" /* LargeImages ID_EXIT_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    ID_SETTINGS_LabelTitle_RESID L"Settings" /* LabelTitle ID_SETTINGS_LabelTitle_RESID: (null) */
+END
+
+ID_SETTINGS_LargeImages_RESID    IMAGE    "UI\\settings.png" /* LargeImages ID_SETTINGS_LargeImages_RESID: (null) */
+APPLICATION_RIBBON    UIFILE    "RibbonUI.bml"

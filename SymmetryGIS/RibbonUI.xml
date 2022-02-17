@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<Application xmlns='http://schemas.microsoft.com/windows/2009/Ribbon'>
+  <!-- Commands section -->
+  <Application.Commands>
+    <!-- Tabs -->
+    <Command Name="cmdTab_Home" LabelTitle="Home" />
+    <Command Name="cmdTab_Tab" LabelTitle="Tab" />
+
+    <!-- Groups -->
+    <Command Name="cmdGroup_File" LabelTitle="File" />
+    <Command Name="cmdGroup_Projection" LabelTitle="Projection" />
+
+    <!-- Optional Symbol and Id properties are not defined for the following commands.
+    A Symbol same as the name of the command
+    and a valid Id for this command will be automatically generated. -->
+    <Command Name="cmdFileMenu" LabelTitle="File" />
+    <Command Name="cmdButton_LoadData" LabelTitle="Load..." Symbol="ID_LOADDATA">
+      <Command.LargeImages>
+        <Image Source="UI/OpenFileL.bmp"/>
+      </Command.LargeImages>
+      <Command.SmallImages>
+        <Image Source="UI/OpenFileL.bmp"/>
+      </Command.SmallImages>
+    </Command>
+    <Command Name="cmdButton_ClearAll" LabelTitle="Clear All" Symbol="ID_CLEARALL">
+      <Command.LargeImages>
+        <Image Source="UI/Remove.bmp"/>
+      </Command.LargeImages>
+      <Command.SmallImages>
+        <Image Source="UI/Remove.bmp"/>
+      </Command.SmallImages>
+    </Command>
+    <Command Name="cmdButton_SwitchProjection" LabelTitle="Switch" Symbol="ID_SWITCHPROJ">
+      <Command.LargeImages>
+        <Image Source="UI/Switch.png"/>
+      </Command.LargeImages>
+      <!--<Command.SmallImages>
+        <Image Source="UI/OpenFileL.bmp"/>
+      </Command.SmallImages>-->
+    </Command>
+    <Command Name="cmdExit" LabelTitle="Exit" Symbol="ID_EXIT">
+      <Command.LargeImages>
+        <Image Source="UI/exit.png"/>
+      </Command.LargeImages>
+      <!--<Command.SmallImages>
+        <Image Source="UI/OpenFileL.bmp"/>
+      </Command.SmallImages>-->
+    </Command>
+    <Command Name="cmdSettings" LabelTitle="Settings" Symbol="ID_SETTINGS">
+      <Command.LargeImages>
+        <Image Source="UI/settings.png"/>
+      </Command.LargeImages>
+      <!--<Command.SmallImages>
+        <Image Source="UI/OpenFileL.bmp"/>
+      </Command.SmallImages>-->
+    </Command>
+  </Application.Commands>
+
+  
+  <Application.Views>
+    <Ribbon>
+      <Ribbon.ApplicationMenu>
+        <ApplicationMenu CommandName="cmdFileMenu">
+          <!--<ApplicationMenu.RecentItems>
+            <RecentItems CommandName="cmdMRUList" MaxCount="10" />
+          </ApplicationMenu.RecentItems>-->
+          <MenuGroup>
+            <Button CommandName="cmdButton_LoadData" />
+          </MenuGroup>
+          <MenuGroup>
+            <Button CommandName="cmdSettings" />
+            <Button CommandName="cmdExit" />
+          </MenuGroup>
+        </ApplicationMenu>
+      </Ribbon.ApplicationMenu>
+
+      <Ribbon.Tabs>
+        <Tab CommandName="cmdTab_Home">
+          <Tab.ScalingPolicy>
+            <ScalingPolicy>
+              <ScalingPolicy.IdealSizes>
+                <Scale Group="cmdGroup_File" Size="Large"  />
+                <Scale Group="cmdGroup_Projection" Size="Large" />
+              </ScalingPolicy.IdealSizes>
+            </ScalingPolicy>
+          </Tab.ScalingPolicy>
+          <Group CommandName="cmdGroup_File" SizeDefinition="TwoButtons">
+            <Button CommandName="cmdButton_LoadData"/>
+            <Button CommandName="cmdButton_ClearAll"/>
+          </Group>
+          <Group CommandName="cmdGroup_Projection" SizeDefinition="OneButton">
+            <Button CommandName="cmdButton_SwitchProjection"/>
+          </Group>
+        </Tab>
+        <Tab CommandName="cmdTab_Tab">
+          <Tab.ScalingPolicy>
+            <ScalingPolicy>
+              <ScalingPolicy.IdealSizes>
+                <!--<Scale Group="IDC_CMD_TABHOME_GROUPLOAD" Size="Medium" />-->
+              </ScalingPolicy.IdealSizes>
+            </ScalingPolicy>
+          </Tab.ScalingPolicy>
+          <!--<Group CommandName="IDC_CMD_TABHOME_GROUPGROUP">
+            <Button CommandName="IDC_CMD_TABHOME_GROUPLOAD_BUTTON"/>            
+          </Group>-->
+        </Tab>
+
+      </Ribbon.Tabs>
+
+      <!--<Ribbon.ContextualTabs>
+        <TabGroup CommandName='IDC_CMD_TAB_CONTEXT_GROUP'>
+          <Tab CommandName="IDC_CMD_TAB_CONTEXT">
+            <Tab.ScalingPolicy>
+              <ScalingPolicy>
+                <ScalingPolicy.IdealSizes>
+                </ScalingPolicy.IdealSizes>
+              </ScalingPolicy>
+            </Tab.ScalingPolicy>
+            <Group CommandName="IDC_CMD_GROUP_CONTEXT">
+              <ToggleButton CommandName="IDC_CMD_HOME_CONTEXT" />
+            </Group>
+          </Tab>
+        </TabGroup>
+      </Ribbon.ContextualTabs>-->
+
+      <!--<Ribbon.QuickAccessToolbar>
+        <QuickAccessToolbar CommandName="QAT">
+          <QuickAccessToolbar.ApplicationDefaults>
+            <Button CommandName="IDC_CMD_TABHOME_GROUPLOAD_LOADDATA" ApplicationDefaults.IsChecked="true"/>
+          </QuickAccessToolbar.ApplicationDefaults>
+        </QuickAccessToolbar>
+      </Ribbon.QuickAccessToolbar>-->
+
+    </Ribbon>
+  </Application.Views>
+</Application>
