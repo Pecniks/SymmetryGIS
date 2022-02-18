@@ -1,0 +1,15 @@
+>SymmetryDetector.exe data\basic\armadillo.obj true
+- opens visualizer
+- output plane will be saved as data\basic\armadillo.obj.txt
+
+>SymmetryDetector.exe data\missing_parts\embrassure.obj false
+- does not open visualizer
+- output plane will be saved as data\missing_parts\embrassure.obj.txt
+
+>SymmetryDetector.exe data\noisy\beetle_noisy_half.obj
+- does not open visualizer
+- output plane will be saved as data\noisy\beetle_noisy_half.obj.txt
+
+>SymmetryDetector.exe data\point_clouds\elipsoid.pc true
+- opens visualizer, each point will be shown as a little triangle
+- output plane will be saved as data\point_clouds\elipsoid.pc.txt
