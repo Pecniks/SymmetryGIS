@@ -109,6 +109,8 @@
     </ClCompile>
     <PostBuildEvent>
       <Command>robocopy  "$(GemmaFusionSdkDir)Lib\x64" "$(TargetDir)." *.dll
+robocopy "$(ProjectDir)las2txt" "$(TargetDir)las2txt\."
+robocopy "$(ProjectDir)SymmetryDetector" "$(TargetDir)SymmetryDetector\."
 set /a 0</Command>
     </PostBuildEvent>
     <Link>
