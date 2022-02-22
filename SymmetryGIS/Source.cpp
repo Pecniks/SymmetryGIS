@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <vector>
 
+
 #pragma comment(lib, "version.lib")
 #pragma comment (lib, "UxTheme.lib")
 using namespace GemmaFusion;
@@ -324,56 +325,81 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 		if (auto result = picker.OpenMultipleDialog("Open lidar files"))
 		{
 			std::vector<ShapeObject> added;
-			//	std::vector<Utils::Plane> planes;
+			std::vector<Utils::Plane> planes;
 			for (auto& file : result.value().Path())
 			{
 				added.push_back(lasContainer->AddLas(file));
 
-				// create point cloud from las files
+				// Converting LAs file to point clound file format
 				auto args = fmt::format("las2txt.exe -i {} --column-delimiter \" \" --line-format x y z --overwrite-files 1 --file-extension pc -o tmp\\", file);
-				APPRESULT_DEV_INFORMATION("%s", args);
+				//APPRESULT_DEV_INFORMATION("%s", args);
 				auto pi = Platform::Windows::Process::CreateProcessInstance("las2txt\\las2txt.exe", args);// , Platform::Interfaces::StandardIO::RedirectInputOutput);
 				pi->Start();
 				pi->Await();
 				//std::string output = Platform::Windows::Process::GetProcessOutput(pi);
-				
+				//prepering point cloud file name 
 				auto pos = file.find_last_of("\\");
 				std::string pcFile(file, pos + 1); pcFile.insert(0, "tmp\\"); pcFile.replace(pcFile.size() - 3, 3, "pc");
-				APPRESULT_DEV_INFORMATION("%s", pcFile);
-
-
+				//APPRESULT_DEV_INFORMATION("%s", pcFile);
+				
+				// Calculating Symmetrie on the pointcloud
 				auto argsym = fmt::format("SymmetryDetector.exe {} {}", pcFile, false); 
-				APPRESULT_DEV_INFORMATION("%s", argsym);
+				//APPRESULT_DEV_INFORMATION("%s", argsym);
 				auto piSym = Platform::Windows::Process::CreateProcessInstance("SymmetryDetector\\SymmetryDetector.exe", argsym, Platform::Interfaces::StandardIO::RedirectInputOutput);
 				piSym->Start();//std::format()
 				piSym->Await();
 				std::string symRes = Platform::Windows::Process::GetProcessOutput(piSym);
-				APPRESULT_DEV_INFORMATION("%s", symRes);
+				//APPRESULT_DEV_INFORMATION("%s", symRes);
+				// Converting Symmetrie result into data
+				// Time characteristic
+				auto bTime = symRes.find("Time:")+6;
+				auto eTime = symRes.find("\n", bTime);
+				auto strTime = symRes.substr(bTime, eTime - bTime-1); 
+				// Plane characteristic
+				auto bPlane = symRes.find("The symmetry plane:")+20;
+				auto ePlane = symRes.find("\n", bPlane);
+				auto strPlane = symRes.substr(bPlane, ePlane - bPlane-1);
+				std::vector<std::string> tokens;
+				std::stringstream ss(strPlane);
+				std::string intermediate;
+				while (getline(ss, intermediate, ';'))
+				{
+					tokens.push_back(intermediate);
+				}
+				Utils::Plane plane;
+				plane.a = (float)atof(tokens[0].c_str());
+				plane.b = (float)atof(tokens[1].c_str());
+				plane.c = (float)atof(tokens[2].c_str());
+				plane.d = (float)atof(tokens[3].c_str());
+				// Symetrie measure characteristic
+				auto bSymmerty = symRes.find("Symmetry measure:")+18;
+				auto eSymmerty = symRes.find("\n", bSymmerty);
+				auto strSymmerty = symRes.substr(bSymmerty, eSymmerty - bSymmerty-1);
+				auto dot = strSymmerty.find(',');
+				strSymmerty.replace(strSymmerty.find(','), 1, ".");
+				auto Symmerty = std::stof(strSymmerty);
+				
+				
+				planes.push_back(plane);
+				// Calculating the Symmetrie Line to draw on the map 
+				auto bb = added.back()->GetBoundingBox2d();
+				Utils::BoundingBox6f BB((float)bb.Min.X, (float)bb.Min.Y, 0.f, (float)bb.Max.X, (float)bb.Max.Y, 0.f);
 
+				Utils::Plane P = Utils::Plane(BB.GetBottomBackLeft(), BB.GetBottomBackRight(), BB.GetBottomFrontLeft());
+				auto ray = Utils::Intersects(plane, P);
+				float kao = Utils::DotProd(BB.Min + ray.o, ray.d);
 
+				auto o = ray.o + ray.d * kao;
+				ray.SetLength(100);
 
-				//Utils::Plane plane;
-				//readSymetrieFile(newf + ".txt", plane);
-				//planes.push_back(plane);
-
-	//		auto bb = added.back()->GetBoundingBox2d();
-	//		Utils::BoundingBox6f BB((float)bb.Min.X, (float)bb.Min.Y, 0.f, (float)bb.Max.X, (float)bb.Max.Y, 0.f);
-
-	//		Utils::Plane P = Utils::Plane(BB.GetBottomBackLeft(), BB.GetBottomBackRight(), BB.GetBottomFrontLeft());
-	//		auto ray = Utils::Intersects(plane, P);
-	//		float kao = Utils::DotProd(BB.Min + ray.o, ray.d);
-
-	//		auto o = ray.o + ray.d * kao;
-	//		ray.SetLength(100);
-
-	//		ShapeLayer lineLayer(SpecificGeometryType::LineStringZ);
-	//		//lineLayer->SetSourceCrs(utm32n);
-	//		//lineLayer->SetTargetCrs(utm32n);
-	//		lineLayer->CreateShapeObject({{ ray.o.x, ray.o.y, ray.o.z + 100 }, { ray.GetSecondPoint(100).x, ray.GetSecondPoint(100).y, ray.GetSecondPoint(100).z}});
-	//		lineLayer->GetStyle().SetColor({1.0f, 0.0f, 0.0f, 1.0f}).PointSymbol().SetSize(5.0f).GetStyle().OutlineSymbol().SetSize(5.0f);
-	//		shapeDrawing->AddShapeLayer(lineLayer);
-	//		canvasHelper.ZoomToShapeLayer(lineLayer, false);
-	//		//applicationInstance->GetWorker().Post([&] { canvasHelper.ZoomToShapeLayer(lineLayer, false); });
+				ShapeLayer lineLayer(SpecificGeometryType::LineStringZ);
+				//lineLayer->SetSourceCrs(utm32n);
+				lineLayer->SetTargetCrs(eps3794);
+				lineLayer->CreateShapeObject({{ ray.o.x, ray.o.y, ray.o.z + 100 }, { ray.GetSecondPoint(100).x, ray.GetSecondPoint(100).y, ray.GetSecondPoint(100).z}});
+				lineLayer->GetStyle().SetColor({1.0f, 0.0f, 0.0f, 1.0f}).PointSymbol().SetSize(5.0f).GetStyle().OutlineSymbol().SetSize(5.0f);
+				shapeDrawing->AddShapeLayer(lineLayer);
+				canvasHelper.ZoomToShapeLayer(lineLayer, false);
+				//applicationInstance->GetWorker().Post([&] { canvasHelper.ZoomToShapeLayer(lineLayer, false); });
 			}
 
 			// Submit lidar rendering to background thread
