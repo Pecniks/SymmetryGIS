@@ -139,7 +139,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 	lasContainer->SetTargetCrs(eps3794);
 	// Add las container shapelayer to the renderer and set it as support layer
 	ShapeLayer lasShapeLayer = lasContainer->GetLasLayer();
-	lasShapeLayer->GetStyle().FillSymbol().Show(false); // Disable shape fill
+	//lasShapeLayer->GetStyle().FillSymbol().Show(false); // Disable shape fill
 	shapeRenderer->CreateLayerObject(lasShapeLayer);
 
 	TmsFetcher basemapFetcher("https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}.png");
@@ -150,6 +150,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 	// Prepare thread for background processing (lidar rendering or anything else)
 	ThreadWorker processingThread("Processing thread", new_thread, Platform::Infinite());
 		
+	
 	CanvasHelper canvasHelper(camera, georeferencer, shapeDrawing);
 
 	applicationInstance->GetWorker().Post([&] { canvasHelper.PanToPoint(Geometry::Point3d(499500, 113000, 0)); });
@@ -175,6 +176,19 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 				outputImage.SetPixel(x, y, rgba);
 			}
 		}
+	};
+
+	//color mapping
+	auto SetColorFromScore = [](float score, auto lasObj) mutable
+	{
+		APPRESULT_DEV_INFORMATION("%f", score);
+		auto col = score / 10000;
+		//auto val = col / 255;
+
+		col = std::min(col , 1.0f);
+
+
+		lasObj->SetStyle(ShapeStyle().GetStyle().SetColor({col,1.0f - col,0.0f,1.0f}));
 	};
 
 	//reading symetrie file
@@ -289,6 +303,38 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 			lasContainer->Clear();
 	});
 
+	ribbon->SetOnCommandExecute(ID_SHOW_LIDAR, [&]
+	{
+		if(ribbon->IsToggled(ID_SHOW_LIDAR))
+		{
+			// Submit lidar rendering to background thread
+			processingThread.Post([uiThread, lasContainer, rasterDrawing, l_hillshade_colormap]() mutable
+								  {
+									  for(int i = 0; i< lasContainer->CountLasObjects(); i++)									  
+									  //for(auto& addedLas : added)
+									  {
+										  auto addedLas = lasContainer->GetLasObject(i);
+										  auto raster = lasContainer->CreateLasRasterLayer(addedLas);
+										  lasContainer->GenerateLasRasterObjects(raster, 1.0, GenerateLasRasterObjectProperties(true, true, {2, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18}));
+										  // Submit rendered raster to the ui thread
+										  uiThread->Post([raster, rasterDrawing, l_hillshade_colormap]() mutable
+														 {
+															 raster[0]->SetCustomColorMapKey("Hillshade");
+															 raster[0]->SetCustomColorMapHandler(l_hillshade_colormap);
+															 rasterDrawing->AddRasterLayer(raster);
+														 });
+									  }
+								  });
+		}
+		else
+		{
+			shapeDrawing->Clear();
+			rasterDrawing->Clear();
+		}
+	});
+
+	
+
 	ribbon->SetOnCommandExecute(ID_SWITCHPROJ, [&]{
 		CrsPickerWindow crsPicker;
 		if(auto epsgCode = crsPicker.GetEpsg(true))
@@ -320,16 +366,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 
 	ribbon->SetOnCommandExecute(ID_LOADDATA, [&] {
 		//APPRESULT_DEV_INFORMATION("Load Data");
+		
 		FilePicker picker;
 		auto las = picker.AddExtensionFilter("LiDAR files", "*.las");
 		if (auto result = picker.OpenMultipleDialog("Open lidar files"))
 		{
 			std::vector<ShapeObject> added;
 			std::vector<Utils::Plane> planes;
+			Geometry::BoundingBox2d bb;
 			for (auto& file : result.value().Path())
 			{
-				added.push_back(lasContainer->AddLas(file));
-
 				// Converting LAs file to point clound file format
 				auto args = fmt::format("las2txt.exe -i {} --column-delimiter \" \" --line-format x y z --overwrite-files 1 --file-extension pc -o tmp\\", file);
 				//APPRESULT_DEV_INFORMATION("%s", args);
@@ -375,52 +421,47 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 				auto bSymmerty = symRes.find("Symmetry measure:")+18;
 				auto eSymmerty = symRes.find("\n", bSymmerty);
 				auto strSymmerty = symRes.substr(bSymmerty, eSymmerty - bSymmerty-1);
-				auto dot = strSymmerty.find(',');
-				strSymmerty.replace(strSymmerty.find(','), 1, ".");
+				/*auto dot = strSymmerty.find(',');
+				strSymmerty.replace(strSymmerty.find(','), 1, ".");*/
 				auto Symmerty = std::stof(strSymmerty);
 				
 				
 				planes.push_back(plane);
-				// Calculating the Symmetrie Line to draw on the map 
-				auto bb = added.back()->GetBoundingBox2d();
-				Utils::BoundingBox6f BB((float)bb.Min.X, (float)bb.Min.Y, 0.f, (float)bb.Max.X, (float)bb.Max.Y, 0.f);
-
-				Utils::Plane P = Utils::Plane(BB.GetBottomBackLeft(), BB.GetBottomBackRight(), BB.GetBottomFrontLeft());
-				auto ray = Utils::Intersects(plane, P);
-				float kao = Utils::DotProd(BB.Min + ray.o, ray.d);
-
-				auto o = ray.o + ray.d * kao;
-				ray.SetLength(100);
-
-				ShapeLayer lineLayer(SpecificGeometryType::LineStringZ);
-				//lineLayer->SetSourceCrs(utm32n);
-				lineLayer->SetTargetCrs(eps3794);
-				lineLayer->CreateShapeObject({{ ray.o.x, ray.o.y, ray.o.z + 100 }, { ray.GetSecondPoint(100).x, ray.GetSecondPoint(100).y, ray.GetSecondPoint(100).z}});
-				lineLayer->GetStyle().SetColor({1.0f, 0.0f, 0.0f, 1.0f}).PointSymbol().SetSize(5.0f).GetStyle().OutlineSymbol().SetSize(5.0f);
-				shapeDrawing->AddShapeLayer(lineLayer);
-				canvasHelper.ZoomToShapeLayer(lineLayer, false);
-				//applicationInstance->GetWorker().Post([&] { canvasHelper.ZoomToShapeLayer(lineLayer, false); });
-			}
-
-			// Submit lidar rendering to background thread
-			processingThread.Post([added, uiThread, lasContainer, rasterDrawing, l_hillshade_colormap]() mutable
-			{
-				for(auto& addedLas : added)
+				if(plane.c == 0.0)
 				{
-					auto raster = lasContainer->CreateLasRasterLayer(addedLas);
-					lasContainer->GenerateLasRasterObjects(raster, 1.0, GenerateLasRasterObjectProperties(true, true, {2, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18}));
-					// Submit rendered raster to the ui thread
-					uiThread->Post([raster, rasterDrawing, l_hillshade_colormap]() mutable
-									{
-										raster[0]->SetCustomColorMapKey("Hillshade");
-										raster[0]->SetCustomColorMapHandler(l_hillshade_colormap);
-										rasterDrawing->AddRasterLayer(raster);
-									});
+					// Calculating the Symmetrie Line to draw on the map 
+					auto bb = added.back()->GetBoundingBox2d();
+					Utils::BoundingBox6f BB((float)bb.Min.X, (float)bb.Min.Y, 0.f, (float)bb.Max.X, (float)bb.Max.Y, 0.f);
+
+					Utils::Plane P = Utils::Plane(BB.GetBottomBackLeft(), BB.GetBottomBackRight(), BB.GetBottomFrontLeft());
+					auto ray = Utils::Intersects(plane, P);
+					float kao = Utils::DotProd(BB.Min + ray.o, ray.d);
+
+					auto o = ray.o + ray.d * kao;
+					ray.SetLength(100);
+
+					ShapeLayer lineLayer(SpecificGeometryType::LineStringZ);
+					//lineLayer->SetSourceCrs(utm32n);
+					lineLayer->SetTargetCrs(eps3794);
+					ShapeObject name =  lineLayer->CreateShapeObject({{ ray.o.x, ray.o.y, ray.o.z + 100 }, { ray.GetSecondPoint(100).x, ray.GetSecondPoint(100).y, ray.GetSecondPoint(100).z}});					
+					lineLayer->GetStyle().SetColor({1.0f, 0.0f, 0.0f, 1.0f}).PointSymbol().SetSize(5.0f).GetStyle().OutlineSymbol().SetSize(5.0f);
+					shapeDrawing->AddShapeLayer(lineLayer);
+					canvasHelper.ZoomToShapeLayer(lineLayer, false);
 				}
-			});
 
-			canvasHelper.ZoomToBoundingBox(added.at(0)->GetBoundingBox2d());
+				auto lasObj = lasContainer->AddLas(file);
+				SetColorFromScore(Symmerty, lasObj);
+				bb.ExpandByBoundingBox2d(lasObj->GetBoundingBox2d());
+				/*auto symb = lasObj->GetStyle().FillSymbol();
+				symb.SetColor({1.0,0.0f,0.0f,1.0f});*/
+				//lasObj->SetStyle().FillSymbol().SetColor({1.0,0.0f,0.0f,1.0f});
+				added.push_back(lasObj);
+				//applicationInstance->GetWorker().Post([&] { canvasHelper.ZoomToShapeLayer(lineLayer, false); });
+				
+			}
+			canvasHelper.ZoomToBoundingBox(bb);
 
+			
 		}
 	});
 

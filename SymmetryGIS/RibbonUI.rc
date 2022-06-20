@@ -27,6 +27,11 @@ END
 
 STRINGTABLE 
 BEGIN
+    cmdGroup_Show_LabelTitle_RESID L"Show" /* LabelTitle cmdGroup_Show_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
     cmdFileMenu_LabelTitle_RESID L"File" /* LabelTitle cmdFileMenu_LabelTitle_RESID: (null) */
 END
 
@@ -62,4 +67,9 @@ BEGIN
 END
 
 ID_SETTINGS_LargeImages_RESID    IMAGE    "UI\\settings.png" /* LargeImages ID_SETTINGS_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    ID_SHOW_LIDAR_LabelTitle_RESID L"LiDAR" /* LabelTitle ID_SHOW_LIDAR_LabelTitle_RESID: (null) */
+END
+
 APPLICATION_RIBBON    UIFILE    "RibbonUI.bml"
