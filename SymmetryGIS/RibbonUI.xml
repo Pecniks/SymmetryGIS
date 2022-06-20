@@ -10,6 +10,7 @@
     <!-- Groups -->
     <Command Name="cmdGroup_File" LabelTitle="File" />
     <Command Name="cmdGroup_Projection" LabelTitle="Projection" />
+    <Command Name="cmdGroup_Show" LabelTitle="Show" />
 
     <!-- Optional Symbol and Id properties are not defined for the following commands.
     A Symbol same as the name of the command
@@ -55,6 +56,14 @@
         <Image Source="UI/OpenFileL.bmp"/>
       </Command.SmallImages>-->
     </Command>
+    <Command Name="cmdShowLiDAR" LabelTitle="LiDAR" Symbol="ID_SHOW_LIDAR">
+      <!--<Command.LargeImages>
+        <Image Source="UI/settings.png"/>
+      </Command.LargeImages>-->
+      <!--<Command.SmallImages>
+        <Image Source="UI/OpenFileL.bmp"/>
+      </Command.SmallImages>-->
+    </Command>
   </Application.Commands>
 
   
@@ -91,6 +100,10 @@
           </Group>
           <Group CommandName="cmdGroup_Projection" SizeDefinition="OneButton">
             <Button CommandName="cmdButton_SwitchProjection"/>
+          </Group>
+          <Group CommandName="cmdGroup_Show" >
+            <CheckBox CommandName="cmdShowLiDAR" />
+            <!--<Button CommandName="cmdShowLiDAR"/>-->
           </Group>
         </Tab>
         <Tab CommandName="cmdTab_Tab">
