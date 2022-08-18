@@ -5,12 +5,14 @@
   <Application.Commands>
     <!-- Tabs -->
     <Command Name="cmdTab_Home" LabelTitle="Home" />
-    <Command Name="cmdTab_Tab" LabelTitle="Tab" />
+    <Command Name="cmdTab_Symmetry" LabelTitle="Symmetry" />
 
     <!-- Groups -->
     <Command Name="cmdGroup_File" LabelTitle="File" />
     <Command Name="cmdGroup_Projection" LabelTitle="Projection" />
     <Command Name="cmdGroup_Show" LabelTitle="Show" />
+    <Command Name="cmdGroup_Gemma" LabelTitle="Gemma" />
+    <Command Name="cmdGroup_Other" LabelTitle="Other" />
 
     <!-- Optional Symbol and Id properties are not defined for the following commands.
     A Symbol same as the name of the command
@@ -64,6 +66,22 @@
         <Image Source="UI/OpenFileL.bmp"/>
       </Command.SmallImages>-->
     </Command>
+    <Command Name="cmdButton_Other_Symmetry" LabelTitle="Symmetry" Symbol="ID_SYMMETRY_OTHER">
+      <Command.LargeImages>
+        <Image Source="UI/settings.png"/>
+      </Command.LargeImages>
+      <!--<Command.SmallImages>
+        <Image Source="UI/OpenFileL.bmp"/>
+      </Command.SmallImages>-->
+    </Command>
+    <Command Name="cmdButton_Gemma_Symmetry" LabelTitle="Symmetry" Symbol="ID_SYMMETRY_GEMMA">
+      <Command.LargeImages>
+        <Image Source="UI/settings.png"/>
+      </Command.LargeImages>
+      <!--<Command.SmallImages>
+        <Image Source="UI/OpenFileL.bmp"/>
+      </Command.SmallImages>-->
+    </Command>
   </Application.Commands>
 
   
@@ -106,17 +124,21 @@
             <!--<Button CommandName="cmdShowLiDAR"/>-->
           </Group>
         </Tab>
-        <Tab CommandName="cmdTab_Tab">
+        <Tab CommandName="cmdTab_Symmetry">
           <Tab.ScalingPolicy>
             <ScalingPolicy>
               <ScalingPolicy.IdealSizes>
-                <!--<Scale Group="IDC_CMD_TABHOME_GROUPLOAD" Size="Medium" />-->
+                <Scale Group="cmdGroup_Other" Size="Large" />
+                <Scale Group="cmdGroup_Gemma" Size="Large" />
               </ScalingPolicy.IdealSizes>
             </ScalingPolicy>
           </Tab.ScalingPolicy>
-          <!--<Group CommandName="IDC_CMD_TABHOME_GROUPGROUP">
-            <Button CommandName="IDC_CMD_TABHOME_GROUPLOAD_BUTTON"/>            
-          </Group>-->
+          <Group CommandName="cmdGroup_Other" SizeDefinition="OneButton">
+            <Button CommandName="cmdButton_Other_Symmetry"/>
+          </Group>
+          <Group CommandName="cmdGroup_Gemma" SizeDefinition="OneButton">
+            <Button CommandName="cmdButton_Gemma_Symmetry"/>
+          </Group>
         </Tab>
 
       </Ribbon.Tabs>
