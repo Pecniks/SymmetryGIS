@@ -13,6 +13,8 @@
     <Command Name="cmdGroup_Show" LabelTitle="Show" />
     <Command Name="cmdGroup_Gemma" LabelTitle="Gemma" />
     <Command Name="cmdGroup_Other" LabelTitle="Other" />
+    <Command Name="cmdGroup_Classify" LabelTitle="Classify" />
+    
 
     <!-- Optional Symbol and Id properties are not defined for the following commands.
     A Symbol same as the name of the command
@@ -82,6 +84,14 @@
         <Image Source="UI/OpenFileL.bmp"/>
       </Command.SmallImages>-->
     </Command>
+    <Command Name="cmdButton_Gemma_Classify" LabelTitle="Houses" Symbol="ID_CLASSIFY_LIDAR">
+      <Command.LargeImages>
+        <Image Source="UI/settings.png"/>
+      </Command.LargeImages>
+      <!--<Command.SmallImages>
+        <Image Source="UI/OpenFileL.bmp"/>
+      </Command.SmallImages>-->
+    </Command>
   </Application.Commands>
 
   
@@ -122,6 +132,9 @@
           <Group CommandName="cmdGroup_Show" >
             <CheckBox CommandName="cmdShowLiDAR" />
             <!--<Button CommandName="cmdShowLiDAR"/>-->
+          </Group>
+          <Group CommandName="cmdGroup_Classify" SizeDefinition="OneButton">
+            <Button CommandName="cmdButton_Gemma_Classify" />
           </Group>
         </Tab>
         <Tab CommandName="cmdTab_Symmetry">

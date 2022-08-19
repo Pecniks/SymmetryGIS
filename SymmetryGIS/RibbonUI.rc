@@ -42,6 +42,11 @@ END
 
 STRINGTABLE 
 BEGIN
+    cmdGroup_Classify_LabelTitle_RESID L"Classify" /* LabelTitle cmdGroup_Classify_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
     cmdFileMenu_LabelTitle_RESID L"File" /* LabelTitle cmdFileMenu_LabelTitle_RESID: (null) */
 END
 
@@ -94,4 +99,10 @@ BEGIN
 END
 
 ID_SYMMETRY_GEMMA_LargeImages_RESID    IMAGE    "UI\\settings.png" /* LargeImages ID_SYMMETRY_GEMMA_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    ID_CLASSIFY_LIDAR_LabelTitle_RESID L"Houses" /* LabelTitle ID_CLASSIFY_LIDAR_LabelTitle_RESID: (null) */
+END
+
+ID_CLASSIFY_LIDAR_LargeImages_RESID    IMAGE    "UI\\settings.png" /* LargeImages ID_CLASSIFY_LIDAR_LargeImages_RESID: (null) */
 APPLICATION_RIBBON    UIFILE    "RibbonUI.bml"

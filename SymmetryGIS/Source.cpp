@@ -364,105 +364,159 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 		}
 	});
 
+	lasObject->Filter(bboxi, true, [&](const ::LAS::const_Point& lasPoint, uint64_t pointIndex)
+					  {
+						  Point3i64 pti{lasPoint.X(), lasPoint.Y(), lasPoint.Z()};
+						  Point3d ptd = lasObject->TransformCoord(pti);
+						  if(!Utility::PointInPolygon(ptd, boundary))
+						  {
+							  return;
+						  }
+
+						  int classification = (int)lasPoint.Classification();
+						  if(!(classification >= 0 && classification < (int)m_S
+
+							   ries.size()))
+						  {
+							  return;
+						  }
+						  // Reproject point to the target crs
+						  if(pointTransform != nullptr)
+						  {
+							  ptd = pointTransform.TransformCoordinate(ptd);
+						  }
+						  LasPointInfo i{pointIndex, ptd, lasObject};
+						  m_PointCache[classification].emplace_back(i);
+					  });
+
 	ribbon->SetOnCommandExecute(ID_LOADDATA, [&] {
 		//APPRESULT_DEV_INFORMATION("Load Data");
-		
+
 		FilePicker picker;
 		auto las = picker.AddExtensionFilter("LiDAR files", "*.las");
-		if (auto result = picker.OpenMultipleDialog("Open lidar files"))
+		if(auto result = picker.OpenDialog("Open LiDAR file"))
 		{
-			std::vector<ShapeObject> added;
-			std::vector<Utils::Plane> planes;
-			Geometry::BoundingBox2d bb;
-			for (auto& file : result.value().Path())
-			{
-				// Converting LAs file to point clound file format
-				auto args = fmt::format("las2txt.exe -i {} --column-delimiter \" \" --line-format x y z --overwrite-files 1 --file-extension pc -o tmp\\", file);
-				//APPRESULT_DEV_INFORMATION("%s", args);
-				auto pi = Platform::Windows::Process::CreateProcessInstance("las2txt\\las2txt.exe", args);// , Platform::Interfaces::StandardIO::RedirectInputOutput);
-				pi->Start();
-				pi->Await();
-				//std::string output = Platform::Windows::Process::GetProcessOutput(pi);
-				//prepering point cloud file name 
-				auto pos = file.find_last_of("\\");
-				std::string pcFile(file, pos + 1); pcFile.insert(0, "tmp\\"); pcFile.replace(pcFile.size() - 3, 3, "pc");
-				//APPRESULT_DEV_INFORMATION("%s", pcFile);
-				
-				// Calculating Symmetrie on the pointcloud
-				auto argsym = fmt::format("SymmetryDetector.exe {} {}", pcFile, false); 
-				//APPRESULT_DEV_INFORMATION("%s", argsym);
-				auto piSym = Platform::Windows::Process::CreateProcessInstance("SymmetryDetector\\SymmetryDetector.exe", argsym, Platform::Interfaces::StandardIO::RedirectInputOutput);
-				piSym->Start();//std::format()
-				piSym->Await();
-				std::string symRes = Platform::Windows::Process::GetProcessOutput(piSym);
-				//APPRESULT_DEV_INFORMATION("%s", symRes);
-				// Converting Symmetrie result into data
-				// Time characteristic
-				auto bTime = symRes.find("Time:")+6;
-				auto eTime = symRes.find("\n", bTime);
-				auto strTime = symRes.substr(bTime, eTime - bTime-1); 
-				// Plane characteristic
-				auto bPlane = symRes.find("The symmetry plane:")+20;
-				auto ePlane = symRes.find("\n", bPlane);
-				auto strPlane = symRes.substr(bPlane, ePlane - bPlane-1);
-				std::vector<std::string> tokens;
-				std::stringstream ss(strPlane);
-				std::string intermediate;
-				while (getline(ss, intermediate, ';'))
-				{
-					tokens.push_back(intermediate);
-				}
-				Utils::Plane plane;
-				plane.a = (float)atof(tokens[0].c_str());
-				plane.b = (float)atof(tokens[1].c_str());
-				plane.c = (float)atof(tokens[2].c_str());
-				plane.d = (float)atof(tokens[3].c_str());
-				// Symetrie measure characteristic
-				auto bSymmerty = symRes.find("Symmetry measure:")+18;
-				auto eSymmerty = symRes.find("\n", bSymmerty);
-				auto strSymmerty = symRes.substr(bSymmerty, eSymmerty - bSymmerty-1);
-				/*auto dot = strSymmerty.find(',');
-				strSymmerty.replace(strSymmerty.find(','), 1, ".");*/
-				auto Symmerty = std::stof(strSymmerty);
-				
-				
-				planes.push_back(plane);
-				if(plane.c == 0.0)
-				{
-					// Calculating the Symmetrie Line to draw on the map 
-					auto bb = added.back()->GetBoundingBox2d();
-					Utils::BoundingBox6f BB((float)bb.Min.X, (float)bb.Min.Y, 0.f, (float)bb.Max.X, (float)bb.Max.Y, 0.f);
+			//APPRESULT_DEV_INFORMATION(result.value().Path());
+			auto lasObj = lasContainer->AddLas(result.value().Path());
+			canvasHelper.ZoomToBoundingBox(lasObj->GetBoundingBox2d());
+			auto lay = lasContainer->GetLasLayer();
 
-					Utils::Plane P = Utils::Plane(BB.GetBottomBackLeft(), BB.GetBottomBackRight(), BB.GetBottomFrontLeft());
-					auto ray = Utils::Intersects(plane, P);
-					float kao = Utils::DotProd(BB.Min + ray.o, ray.d);
+			//		SetColorFromScore(Symmerty, lasObj);
+			//		bb.ExpandByBoundingBox2d(lasObj->GetBoundingBox2d());
+			
+			//		added.push_back(lasObj);
 
-					auto o = ray.o + ray.d * kao;
-					ray.SetLength(100);
-
-					ShapeLayer lineLayer(SpecificGeometryType::LineStringZ);
-					//lineLayer->SetSourceCrs(utm32n);
-					lineLayer->SetTargetCrs(eps3794);
-					ShapeObject name =  lineLayer->CreateShapeObject({{ ray.o.x, ray.o.y, ray.o.z + 100 }, { ray.GetSecondPoint(100).x, ray.GetSecondPoint(100).y, ray.GetSecondPoint(100).z}});					
-					lineLayer->GetStyle().SetColor({1.0f, 0.0f, 0.0f, 1.0f}).PointSymbol().SetSize(5.0f).GetStyle().OutlineSymbol().SetSize(5.0f);
-					shapeDrawing->AddShapeLayer(lineLayer);
-					canvasHelper.ZoomToShapeLayer(lineLayer, false);
-				}
-
-				auto lasObj = lasContainer->AddLas(file);
-				SetColorFromScore(Symmerty, lasObj);
-				bb.ExpandByBoundingBox2d(lasObj->GetBoundingBox2d());
-				/*auto symb = lasObj->GetStyle().FillSymbol();
-				symb.SetColor({1.0,0.0f,0.0f,1.0f});*/
-				//lasObj->SetStyle().FillSymbol().SetColor({1.0,0.0f,0.0f,1.0f});
-				added.push_back(lasObj);
-				//applicationInstance->GetWorker().Post([&] { canvasHelper.ZoomToShapeLayer(lineLayer, false); });
-				
-			}
-			canvasHelper.ZoomToBoundingBox(bb);
 
 			
 		}
+
+		//FilePicker picker;
+		//auto las = picker.AddExtensionFilter("LiDAR files", "*.las");
+		//if (auto result = picker.OpenMultipleDialog("Open lidar files"))
+		//{
+		//	std::vector<ShapeObject> added;
+		//	std::vector<Utils::Plane> planes;
+		//	Geometry::BoundingBox2d bb;
+		//	for (auto& file : result.value().Path())
+		//	{
+		//		// Converting LAs file to point clound file format
+		//		auto args = fmt::format("las2txt.exe -i {} --column-delimiter \" \" --line-format x y z --overwrite-files 1 --file-extension pc -o tmp\\", file);
+		//		//APPRESULT_DEV_INFORMATION("%s", args);
+		//		auto pi = Platform::Windows::Process::CreateProcessInstance("las2txt\\las2txt.exe", args);// , Platform::Interfaces::StandardIO::RedirectInputOutput);
+		//		pi->Start();
+		//		pi->Await();
+		//		//std::string output = Platform::Windows::Process::GetProcessOutput(pi);
+		//		//prepering point cloud file name 
+		//		auto pos = file.find_last_of("\\");
+		//		std::string pcFile(file, pos + 1); pcFile.insert(0, "tmp\\"); pcFile.replace(pcFile.size() - 3, 3, "pc");
+		//		//APPRESULT_DEV_INFORMATION("%s", pcFile);
+		//		
+		//		// Calculating Symmetrie on the pointcloud
+		//		auto argsym = fmt::format("SymmetryDetector.exe {} {}", pcFile, false); 
+		//		//APPRESULT_DEV_INFORMATION("%s", argsym);
+		//		auto piSym = Platform::Windows::Process::CreateProcessInstance("SymmetryDetector\\SymmetryDetector.exe", argsym, Platform::Interfaces::StandardIO::RedirectInputOutput);
+		//		piSym->Start();//std::format()
+		//		piSym->Await();
+		//		std::string symRes = Platform::Windows::Process::GetProcessOutput(piSym);
+		//		//APPRESULT_DEV_INFORMATION("%s", symRes);
+		//		// Converting Symmetrie result into data
+		//		// Time characteristic
+		//		auto bTime = symRes.find("Time:")+6;
+		//		auto eTime = symRes.find("\n", bTime);
+		//		auto strTime = symRes.substr(bTime, eTime - bTime-1); 
+		//		// Plane characteristic
+		//		auto bPlane = symRes.find("The symmetry plane:")+20;
+		//		auto ePlane = symRes.find("\n", bPlane);
+		//		auto strPlane = symRes.substr(bPlane, ePlane - bPlane-1);
+		//		std::vector<std::string> tokens;
+		//		std::stringstream ss(strPlane);
+		//		std::string intermediate;
+		//		while (getline(ss, intermediate, ';'))
+		//		{
+		//			tokens.push_back(intermediate);
+		//		}
+		//		Utils::Plane plane;
+		//		plane.a = (float)atof(tokens[0].c_str());
+		//		plane.b = (float)atof(tokens[1].c_str());
+		//		plane.c = (float)atof(tokens[2].c_str());
+		//		plane.d = (float)atof(tokens[3].c_str());
+		//		// Symetrie measure characteristic
+		//		auto bSymmerty = symRes.find("Symmetry measure:")+18;
+		//		auto eSymmerty = symRes.find("\n", bSymmerty);
+		//		auto strSymmerty = symRes.substr(bSymmerty, eSymmerty - bSymmerty-1);
+		//		/*auto dot = strSymmerty.find(',');
+		//		strSymmerty.replace(strSymmerty.find(','), 1, ".");*/
+		//		auto Symmerty = std::stof(strSymmerty);
+		//		
+		//		
+		//		planes.push_back(plane);
+		//		if(plane.c == 0.0)
+		//		{
+		//			// Calculating the Symmetrie Line to draw on the map 
+		//			auto bb = added.back()->GetBoundingBox2d();
+		//			Utils::BoundingBox6f BB((float)bb.Min.X, (float)bb.Min.Y, 0.f, (float)bb.Max.X, (float)bb.Max.Y, 0.f);
+
+		//			Utils::Plane P = Utils::Plane(BB.GetBottomBackLeft(), BB.GetBottomBackRight(), BB.GetBottomFrontLeft());
+		//			auto ray = Utils::Intersects(plane, P);
+		//			float kao = Utils::DotProd(BB.Min + ray.o, ray.d);
+
+		//			auto o = ray.o + ray.d * kao;
+		//			ray.SetLength(100);
+
+		//			ShapeLayer lineLayer(SpecificGeometryType::LineStringZ);
+		//			//lineLayer->SetSourceCrs(utm32n);
+		//			lineLayer->SetTargetCrs(eps3794);
+		//			ShapeObject name =  lineLayer->CreateShapeObject({{ ray.o.x, ray.o.y, ray.o.z + 100 }, { ray.GetSecondPoint(100).x, ray.GetSecondPoint(100).y, ray.GetSecondPoint(100).z}});					
+		//			lineLayer->GetStyle().SetColor({1.0f, 0.0f, 0.0f, 1.0f}).PointSymbol().SetSize(5.0f).GetStyle().OutlineSymbol().SetSize(5.0f);
+		//			shapeDrawing->AddShapeLayer(lineLayer);
+		//			canvasHelper.ZoomToShapeLayer(lineLayer, false);
+		//		}
+
+		//		
+		//		auto lasObj = lasContainer->AddLas(file);
+		//		SetColorFromScore(Symmerty, lasObj);
+		//		bb.ExpandByBoundingBox2d(lasObj->GetBoundingBox2d());
+		//		/*auto symb = lasObj->GetStyle().FillSymbol();
+		//		symb.SetColor({1.0,0.0f,0.0f,1.0f});*/
+		//		//lasObj->SetStyle().FillSymbol().SetColor({1.0,0.0f,0.0f,1.0f});
+		//		added.push_back(lasObj);
+		//		//applicationInstance->GetWorker().Post([&] { canvasHelper.ZoomToShapeLayer(lineLayer, false); });
+		//		
+		//	}
+		//	canvasHelper.ZoomToBoundingBox(bb);			
+		//}
+	});
+
+	ribbon->SetOnCommandExecute(ID_SYMMETRY_OTHER, [&] {
+		APPRESULT_DEV_INFORMATION("Cehi");
+
+
+	});
+
+	ribbon->SetOnCommandExecute(ID_SYMMETRY_GEMMA, [&] {
+		APPRESULT_DEV_INFORMATION("GEMMA");
+
+
 	});
 
 	//
