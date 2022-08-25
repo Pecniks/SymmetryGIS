@@ -4,10 +4,72 @@
 #include <filesystem>
 #include <vector>
 
+#include <GF/Extensions/Extensions.h>
 
 #pragma comment(lib, "version.lib")
 #pragma comment (lib, "UxTheme.lib")
 using namespace GemmaFusion;
+
+std::tuple<RasterLayer, RasterObject> GetClassificationMask(const std::string& classifiedLasPath, double resolution)
+{
+	// Load classified lidar
+	LasContainer lasContainer;
+	auto lasObject = lasContainer->AddLas(classifiedLasPath);
+
+	// Create spatial point index for faster point search
+	lasContainer->IndexLas(lasObject);
+
+	// Create empty raster layer out of las file and then create raster object with provided resolution
+	RasterLayer lasRaster = lasContainer->CreateLasRasterLayer(lasObject);
+	RasterObject lasClassification = lasRaster->CreateRasterObject(resolution);
+
+	// Fill raster object with classification data
+	auto image = lasClassification.GetImage();
+	image.SetAllPixels(0.0f);										// Set all values to 0
+	GF::Processing::Features::LAS::FillGridWithLidar(
+		lasContainer,												// las container to be used for point extraction. This function can extract points from multiple las files
+		GF::Processing::Features::LAS::LasProperty::Classification, // Point attribute to extract into image
+		{ 6 },											// Classifications to extract
+		lasClassification);											// Target raster object into which values are written
+
+	return { lasRaster, lasClassification };
+}
+
+void ClosingByReconstruction(RasterObject object, int winSize)
+{
+	auto grid = GF::Extensions::Interop::GetGrid(object);
+	grid.ClosingByReconstruction(winSize);
+	GF::Extensions::Interop::CopyValues(grid, object);
+}
+
+std::vector<Point3d> GetBuildingPoints(const std::string& classifiedLasPath, ShapeObject buildingOutline)
+{
+	// Open las file
+	LasObject lasObject(classifiedLasPath);
+
+	// Prepare las native boundingbox
+	BoundingBox3i64 bbox;
+	bbox.Expand(lasObject->ReverseTransform(buildingOutline->GetBoundingBox2d().Min.cast<Point3d>()));
+	bbox.Expand(lasObject->ReverseTransform(buildingOutline->GetBoundingBox2d().Max.cast<Point3d>()));
+
+	// Get composed polygons (multipolygon structure with holes)
+	auto polygons = buildingOutline->GetComposedPolygons();
+
+	// Filter out points that belong to the building
+	std::vector<Point3d> points;
+	lasObject->Filter(bbox, true, [&](LAS::const_Point point) {
+		auto ptNative = Point3i64(point.X(), point.Y(), point.Z());//.convert_from(point.XYZ()).cast<Point3i64>();
+		auto ptTransformed = lasObject->TransformCoord(ptNative);
+		for (auto& polygon : polygons) {
+			if (!polygon.Contains2d(ptTransformed)) continue;
+			points.push_back(ptTransformed);
+		}
+	});
+
+	return points;
+}
+
+
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 {
@@ -156,6 +218,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 	applicationInstance->GetWorker().Post([&] { canvasHelper.PanToPoint(Geometry::Point3d(499500, 113000, 0)); });
 	applicationInstance->GetWorker().Post([&] { std::filesystem::remove_all("tmp\\"); });
 	
+
+	std::string m_Data;
+
 	//
 	// Prepare initial data for visualization
 	//
@@ -364,30 +429,73 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 		}
 	});
 
-	lasObject->Filter(bboxi, true, [&](const ::LAS::const_Point& lasPoint, uint64_t pointIndex)
-					  {
-						  Point3i64 pti{lasPoint.X(), lasPoint.Y(), lasPoint.Z()};
-						  Point3d ptd = lasObject->TransformCoord(pti);
-						  if(!Utility::PointInPolygon(ptd, boundary))
-						  {
-							  return;
-						  }
+	//lasObject->Filter(bboxi, true, [&](const ::LAS::const_Point& lasPoint, uint64_t pointIndex)
+	//				  {
+	//					  Point3i64 pti{lasPoint.X(), lasPoint.Y(), lasPoint.Z()};
+	//					  Point3d ptd = lasObject->TransformCoord(pti);
+	//					  if(!Utility::PointInPolygon(ptd, boundary))
+	//					  {
+	//						  return;
+	//					  }
 
-						  int classification = (int)lasPoint.Classification();
-						  if(!(classification >= 0 && classification < (int)m_S
+	//					  int classification = (int)lasPoint.Classification();
+	//					  if(!(classification >= 0 && classification < (int)m_S
 
-							   ries.size()))
-						  {
-							  return;
-						  }
-						  // Reproject point to the target crs
-						  if(pointTransform != nullptr)
-						  {
-							  ptd = pointTransform.TransformCoordinate(ptd);
-						  }
-						  LasPointInfo i{pointIndex, ptd, lasObject};
-						  m_PointCache[classification].emplace_back(i);
-					  });
+	//						   ries.size()))
+	//					  {
+	//						  return;
+	//					  }
+	//					  // Reproject point to the target crs
+	//					  if(pointTransform != nullptr)
+	//					  {
+	//						  ptd = pointTransform.TransformCoordinate(ptd);
+	//					  }
+	//					  LasPointInfo i{pointIndex, ptd, lasObject};
+	//					  m_PointCache[classification].emplace_back(i);
+	//				  });
+
+	auto RenderWholeLas = [&]() mutable
+	{
+		// Submit lidar rendering to background thread
+		processingThread.Post([uiThread, lasContainer, rasterDrawing, l_hillshade_colormap]() mutable
+		{
+			for (int i = 0; i < lasContainer->CountLasObjects(); i++) //for(auto& addedLas : added)
+			{
+				auto addedLas = lasContainer->GetLasObject(i);
+				auto raster = lasContainer->CreateLasRasterLayer(addedLas);
+				lasContainer->GenerateLasRasterObjects(raster, 1.0, GenerateLasRasterObjectProperties(true, false, { 2, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 }));
+				// Submit rendered raster to the ui thread
+				uiThread->Post([raster, rasterDrawing, l_hillshade_colormap]() mutable
+				{
+					raster[0]->SetCustomColorMapKey("Hillshade");
+					raster[0]->SetCustomColorMapHandler(l_hillshade_colormap);
+					rasterDrawing->AddRasterLayer(raster);
+				});
+			}
+		});
+	};
+
+	auto RenderOnlyHouses = [&]() mutable
+	{
+		//// Submit lidar rendering to background thread
+		processingThread.Post([uiThread, lasContainer, rasterDrawing, l_hillshade_colormap]() mutable
+		{
+			for (int i = 0; i < lasContainer->CountLasObjects(); i++)
+				//for(auto& addedLas : added)
+			{
+				auto addedLas = lasContainer->GetLasObject(i);
+				auto raster = lasContainer->CreateLasRasterLayer(addedLas);
+				lasContainer->GenerateLasRasterObjects(raster, 1.0, GenerateLasRasterObjectProperties(true, false, { 6 }));
+				// Submit rendered raster to the ui thread
+				uiThread->Post([raster, rasterDrawing, l_hillshade_colormap]() mutable
+				{
+					raster[0]->SetCustomColorMapKey("Hillshade");
+					raster[0]->SetCustomColorMapHandler(l_hillshade_colormap);
+					rasterDrawing->AddRasterLayer(raster);
+				});
+			}
+		});
+	};
 
 	ribbon->SetOnCommandExecute(ID_LOADDATA, [&] {
 		//APPRESULT_DEV_INFORMATION("Load Data");
@@ -396,11 +504,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 		auto las = picker.AddExtensionFilter("LiDAR files", "*.las");
 		if(auto result = picker.OpenDialog("Open LiDAR file"))
 		{
-			//APPRESULT_DEV_INFORMATION(result.value().Path());
-			auto lasObj = lasContainer->AddLas(result.value().Path());
-			canvasHelper.ZoomToBoundingBox(lasObj->GetBoundingBox2d());
-			auto lay = lasContainer->GetLasLayer();
+			shapeDrawing->Clear();
+			rasterDrawing->Clear();
+			lasContainer->Clear();
 
+			m_Data = result.value().Path();
+			//APPRESULT_DEV_INFORMATION(result.value().Path());
+			//m_Data.push_back(result.value().Path());
+			auto lasObj = lasContainer->AddLas(m_Data);
+			canvasHelper.ZoomToBoundingBox(lasObj->GetBoundingBox2d());
+			//auto lay = lasContainer->GetLasLayer();
+
+			RenderWholeLas();
 			//		SetColorFromScore(Symmerty, lasObj);
 			//		bb.ExpandByBoundingBox2d(lasObj->GetBoundingBox2d());
 			
@@ -475,14 +590,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 		//			// Calculating the Symmetrie Line to draw on the map 
 		//			auto bb = added.back()->GetBoundingBox2d();
 		//			Utils::BoundingBox6f BB((float)bb.Min.X, (float)bb.Min.Y, 0.f, (float)bb.Max.X, (float)bb.Max.Y, 0.f);
-
 		//			Utils::Plane P = Utils::Plane(BB.GetBottomBackLeft(), BB.GetBottomBackRight(), BB.GetBottomFrontLeft());
 		//			auto ray = Utils::Intersects(plane, P);
 		//			float kao = Utils::DotProd(BB.Min + ray.o, ray.d);
-
 		//			auto o = ray.o + ray.d * kao;
 		//			ray.SetLength(100);
-
 		//			ShapeLayer lineLayer(SpecificGeometryType::LineStringZ);
 		//			//lineLayer->SetSourceCrs(utm32n);
 		//			lineLayer->SetTargetCrs(eps3794);
@@ -506,6 +618,68 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 		//	canvasHelper.ZoomToBoundingBox(bb);			
 		//}
 	});
+	
+	auto ClassifyHaouses = [&](std::string LasFile) mutable
+	{
+		Platform::Windows::Console::Console console;
+		console->EnableVirtualTerminalSequences(true);
+
+		GF::Extensions::LidarProcessing::GeneralProcessingSettings genericParams;
+		genericParams.IsRemoveOutliers = true;
+		genericParams.OutliersHeight = 0.1;
+		genericParams.OutliersSize = 15;
+
+		// Generate DTM
+		GF::Extensions::LidarProcessing::DtmProcessingSettings dtmParams;
+		dtmParams.Resolution = 0.5;
+		GF::Extensions::LidarProcessing::DtmProcessing dtm(LasFile);
+		std::string dtmFile = dtm.Run(genericParams, dtmParams, nullptr);
+		
+		// Generate PAS
+		GF::Extensions::LidarProcessing::PasProcessingSettings pasParams;
+		GF::Extensions::LidarProcessing::PasProcessing pas(dtmFile);
+		std::string pasFile = pas.Run(pasParams);
+
+		// Classify Ground
+		GF::Extensions::LidarProcessing::GroundClassificationProcessingSettings groundParams; 
+		GF::Extensions::LidarProcessing::GroundProcessing ground(LasFile, dtmFile, GF::Extensions::LidarProcessing::PathDepth::OriginalLasFolder);
+		std::string groundFile = ground.Run(genericParams, groundParams, nullptr);
+
+		// Classify Buildings
+		GF::Extensions::LidarProcessing::BuildingClassificationProcessingSettings buildingParams;
+		GF::Extensions::LidarProcessing::BuildingsProcessing buildings(groundFile, dtmFile, GF::Extensions::LidarProcessing::PathDepth::GroundFolder);
+		std::string buildingsFile = buildings.Run(genericParams, buildingParams, nullptr);
+
+		m_Data = buildingsFile;
+		return;
+		// Classify Vegetation
+		GF::Extensions::LidarProcessing::VegetationClassificationProcessingSettings vegetationParams;
+		vegetationParams.IsSingleClass = false;
+		vegetationParams.LowVegetation = 0.2;
+		vegetationParams.MiddleVegetation = 1.0;
+		vegetationParams.HighVegetation = 3.0;
+		GF::Extensions::LidarProcessing::VegetationProcessing vegetation(buildingsFile, dtmFile, GF::Extensions::LidarProcessing::PathDepth::BuildingFolder);
+		std::string vegetationPath = vegetation.Run(genericParams, vegetationParams, nullptr);
+		console.WriteLine("DONE: %s", vegetationPath);
+	};
+
+	ribbon->SetOnCommandExecute(ID_CLASSIFY_LIDAR, [&] {
+		APPRESULT_DEV_INFORMATION("Classify");
+
+		auto addedLas = lasContainer->GetLasObject(0);
+		ClassifyHaouses(m_Data);
+
+		shapeDrawing->Clear();
+		rasterDrawing->Clear();
+		lasContainer->Clear();
+
+		auto lasObj = lasContainer->AddLas(m_Data);
+		canvasHelper.ZoomToBoundingBox(lasObj->GetBoundingBox2d());
+
+		RenderOnlyHouses();
+	});
+
+
 
 	ribbon->SetOnCommandExecute(ID_SYMMETRY_OTHER, [&] {
 		APPRESULT_DEV_INFORMATION("Cehi");
@@ -516,6 +690,26 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 	ribbon->SetOnCommandExecute(ID_SYMMETRY_GEMMA, [&] {
 		APPRESULT_DEV_INFORMATION("GEMMA");
 
+		//Platform::Windows::Console::Console console;
+		//console->EnableVirtualTerminalSequences(true);
+
+		// Get mask at resolution 1
+		//auto [lasLayer, lasClassMask] = GetClassificationMask(m_Data, 1.0);
+		//lasClassMask->GetImage()->SaveToFile("ClassMask_Raw.tif");
+
+		// Close small holes in rooftops
+		//ClosingByReconstruction(lasClassMask, 5);
+		//lasClassMask->GetImage()->SaveToFile("ClassMask_Closed.tif");
+
+		// Limit classMask to the buildings
+		//lasClassMask->SetValueLimits(6.0, 6.0);
+
+		//console.WriteLine("Extracting geometry bounds from: %s", m_Data);
+		// Extract building bounds
+		//ShapeLayer buildings = GF::Processing::Features::ShapeFeatureExtraction::ExtractPolygonBounds(lasClassMask, 1, false, false, false);
+
+		// Save result
+		//GF::Api::Spatial::Shape::ToGeopackage(buildings->AsInterface(), "buildings.gpkg");
 
 	});
 

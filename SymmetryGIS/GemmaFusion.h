@@ -126,6 +126,7 @@
 #include <GF/UI/Mfc/Components.h>
 #include <GF/Tasks/Tasks.h>
 #include <GF/Extensions/Extensions.h>
+#include <GF/Processing/Features.h>
 
 // Gemma Fusion private
 #include <GF/Core/Core.Private.h>
