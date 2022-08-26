@@ -8,6 +8,7 @@
 
 #pragma comment(lib, "version.lib")
 #pragma comment (lib, "UxTheme.lib")
+#pragma comment(lib, "EzLasLib.lib")
 using namespace GemmaFusion;
 
 std::tuple<RasterLayer, RasterObject> GetClassificationMask(const std::string& classifiedLasPath, double resolution)
@@ -690,27 +691,31 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 	ribbon->SetOnCommandExecute(ID_SYMMETRY_GEMMA, [&] {
 		APPRESULT_DEV_INFORMATION("GEMMA");
 
-		//Platform::Windows::Console::Console console;
-		//console->EnableVirtualTerminalSequences(true);
+		Platform::Windows::Console::Console console;
+		console->EnableVirtualTerminalSequences(true);
 
 		// Get mask at resolution 1
-		//auto [lasLayer, lasClassMask] = GetClassificationMask(m_Data, 1.0);
-		//lasClassMask->GetImage()->SaveToFile("ClassMask_Raw.tif");
+		auto [lasLayer, lasClassMask] = GetClassificationMask(m_Data, 1.0);
+		lasClassMask->GetImage()->SaveToFile("ClassMask_Raw.tif");
 
 		// Close small holes in rooftops
-		//ClosingByReconstruction(lasClassMask, 5);
-		//lasClassMask->GetImage()->SaveToFile("ClassMask_Closed.tif");
+		ClosingByReconstruction(lasClassMask, 3);
+		lasClassMask->GetImage()->SaveToFile("ClassMask_Closed.tif");
 
 		// Limit classMask to the buildings
-		//lasClassMask->SetValueLimits(6.0, 6.0);
+		lasClassMask->SetValueLimits(6.0, 6.0);
 
-		//console.WriteLine("Extracting geometry bounds from: %s", m_Data);
+		console.WriteLine("Extracting geometry bounds from: %s", m_Data);
 		// Extract building bounds
-		//ShapeLayer buildings = GF::Processing::Features::ShapeFeatureExtraction::ExtractPolygonBounds(lasClassMask, 1, false, false, false);
+		ShapeLayer buildings = GF::Processing::Features::ShapeFeatureExtraction::ExtractPolygonBounds(lasClassMask, 1, false, false, false);
 
 		// Save result
-		//GF::Api::Spatial::Shape::ToGeopackage(buildings->AsInterface(), "buildings.gpkg");
+		GF::Api::Spatial::Shape::ToGeopackage(buildings->AsInterface(), "buildings.gpkg");
 
+		shapeDrawing->Clear();
+		rasterDrawing->Clear();
+		lasContainer->Clear();
+		shapeDrawing->AddShapeLayer(buildings);
 	});
 
 	//
