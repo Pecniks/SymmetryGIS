@@ -219,8 +219,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 	applicationInstance->GetWorker().Post([&] { canvasHelper.PanToPoint(Geometry::Point3d(499500, 113000, 0)); });
 	applicationInstance->GetWorker().Post([&] { std::filesystem::remove_all("tmp\\"); });
 	
-
-	std::string m_Data;
+	std::string m_LASFilename;
+	//std::string m_Data;
 
 	//
 	// Prepare initial data for visualization
@@ -299,7 +299,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 	});
 
 	auto lastUpdateStatus = std::chrono::high_resolution_clock::now();
-	canvas->SetMouseEvent(MouseEventType::MouseMove, [&](const Mouse& mouse) {
+	canvas->SetMouseEvent(MouseEventType::MouseMove, [&](const Mouse& mouse) 
+	{
 		auto world = camera->ScreenToWorldCoordinates(mouse.CurrentPosition2());
 		auto geo = georeferencer->WorldToGeoreferencedCoordinates(world.cast<Point3d>());
 		geo.Z = 0;
@@ -319,12 +320,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 		shapeRenderer->Update(true);
 	});
 
-	canvas->SetMouseEvent(MouseEventType::LButtonDown, [&](const Mouse& mouse) {
+	canvas->SetMouseEvent(MouseEventType::LButtonDown, [&](const Mouse& mouse) 
+	{
 		canvas->SetCursor(MouseCursor::SizeAll);
+
 	});
 
-	canvas->SetMouseEvent(MouseEventType::LButtonUp, [&](const Mouse& mouse) {
+	canvas->SetMouseEvent(MouseEventType::LButtonUp, [&](const Mouse& mouse) 
+	{
 		canvas->SetCursor(MouseCursor::Arrow);
+
 	});
 
 	canvas->SetMouseEvent(MouseEventType::RButtonUp, [&](const Mouse& mouse) {
@@ -509,10 +514,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 			rasterDrawing->Clear();
 			lasContainer->Clear();
 
-			m_Data = result.value().Path();
+			m_LASFilename = result.value().Path();			
 			//APPRESULT_DEV_INFORMATION(result.value().Path());
 			//m_Data.push_back(result.value().Path());
-			auto lasObj = lasContainer->AddLas(m_Data);
+			auto lasObj = lasContainer->AddLas(m_LASFilename);
+			
 			canvasHelper.ZoomToBoundingBox(lasObj->GetBoundingBox2d());
 			//auto lay = lasContainer->GetLasLayer();
 
@@ -622,7 +628,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 	
 	auto ClassifyHaouses = [&](std::string LasFile) mutable
 	{
-		Platform::Windows::Console::Console console;
+		Platform::Windows::Console::Console console;s
 		console->EnableVirtualTerminalSequences(true);
 
 		GF::Extensions::LidarProcessing::GeneralProcessingSettings genericParams;
@@ -631,53 +637,61 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 		genericParams.OutliersSize = 15;
 
 		// Generate DTM
+		APPRESULT_DEV_INFORMATION("Generating DTM");
 		GF::Extensions::LidarProcessing::DtmProcessingSettings dtmParams;
 		dtmParams.Resolution = 0.5;
 		GF::Extensions::LidarProcessing::DtmProcessing dtm(LasFile);
 		std::string dtmFile = dtm.Run(genericParams, dtmParams, nullptr);
 		
 		// Generate PAS
+		APPRESULT_DEV_INFORMATION("Generating PAS");
 		GF::Extensions::LidarProcessing::PasProcessingSettings pasParams;
 		GF::Extensions::LidarProcessing::PasProcessing pas(dtmFile);
 		std::string pasFile = pas.Run(pasParams);
 
 		// Classify Ground
+		APPRESULT_DEV_INFORMATION("Classifying Ground");
 		GF::Extensions::LidarProcessing::GroundClassificationProcessingSettings groundParams; 
 		GF::Extensions::LidarProcessing::GroundProcessing ground(LasFile, dtmFile, GF::Extensions::LidarProcessing::PathDepth::OriginalLasFolder);
 		std::string groundFile = ground.Run(genericParams, groundParams, nullptr);
 
 		// Classify Buildings
+		APPRESULT_DEV_INFORMATION("Classifying Buildings");
 		GF::Extensions::LidarProcessing::BuildingClassificationProcessingSettings buildingParams;
 		GF::Extensions::LidarProcessing::BuildingsProcessing buildings(groundFile, dtmFile, GF::Extensions::LidarProcessing::PathDepth::GroundFolder);
 		std::string buildingsFile = buildings.Run(genericParams, buildingParams, nullptr);
 
-		m_Data = buildingsFile;
-		return;
+		//m_LASFilename = buildingsFile;
+		//return;
 		// Classify Vegetation
+		APPRESULT_DEV_INFORMATION("Classifying Vegetation");
 		GF::Extensions::LidarProcessing::VegetationClassificationProcessingSettings vegetationParams;
 		vegetationParams.IsSingleClass = false;
 		vegetationParams.LowVegetation = 0.2;
 		vegetationParams.MiddleVegetation = 1.0;
 		vegetationParams.HighVegetation = 3.0;
 		GF::Extensions::LidarProcessing::VegetationProcessing vegetation(buildingsFile, dtmFile, GF::Extensions::LidarProcessing::PathDepth::BuildingFolder);
-		std::string vegetationPath = vegetation.Run(genericParams, vegetationParams, nullptr);
-		console.WriteLine("DONE: %s", vegetationPath);
+		std::string vegetationFile = vegetation.Run(genericParams, vegetationParams, nullptr);
+		m_LASFilename = vegetationFile;
+		
+		APPRESULT_DEV_INFORMATION("Classification DONE");
 	};
 
 	ribbon->SetOnCommandExecute(ID_CLASSIFY_LIDAR, [&] {
 		APPRESULT_DEV_INFORMATION("Classify");
 
 		auto addedLas = lasContainer->GetLasObject(0);
-		ClassifyHaouses(m_Data);
+		ClassifyHaouses(m_LASFilename);
 
 		shapeDrawing->Clear();
 		rasterDrawing->Clear();
 		lasContainer->Clear();
 
-		auto lasObj = lasContainer->AddLas(m_Data);
+		auto lasObj = lasContainer->AddLas(m_LASFilename);
 		canvasHelper.ZoomToBoundingBox(lasObj->GetBoundingBox2d());
 
-		RenderOnlyHouses();
+		RenderWholeLas();
+		//RenderOnlyHouses();
 	});
 
 
@@ -695,7 +709,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 		console->EnableVirtualTerminalSequences(true);
 
 		// Get mask at resolution 1
-		auto [lasLayer, lasClassMask] = GetClassificationMask(m_Data, 1.0);
+		auto [lasLayer, lasClassMask] = GetClassificationMask(m_LASFilename, 1.0);
 		lasClassMask->GetImage()->SaveToFile("ClassMask_Raw.tif");
 
 		// Close small holes in rooftops
@@ -705,7 +719,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 		// Limit classMask to the buildings
 		lasClassMask->SetValueLimits(6.0, 6.0);
 
-		console.WriteLine("Extracting geometry bounds from: %s", m_Data);
+		console.WriteLine("Extracting geometry bounds from: %s", m_LASFilename);
 		// Extract building bounds
 		ShapeLayer buildings = GF::Processing::Features::ShapeFeatureExtraction::ExtractPolygonBounds(lasClassMask, 1, false, false, false);
 
