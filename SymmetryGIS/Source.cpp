@@ -70,8 +70,6 @@ std::vector<Point3d> GetBuildingPoints(const std::string& classifiedLasPath, Sha
 	return points;
 }
 
-
-
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 {
 	//
@@ -164,16 +162,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 	//
 	
 	// Get 3D camera from canvas
-	Camera camera = canvas->GetCamera(); 
-	camera->SetZ(-300000.0f);
+	Camera m_Camera = canvas->GetCamera(); 
+	m_Camera->SetZ(-300000.0f);
 
 	// Setup georeferencer (transforms georeferenced points into 3D world space)
-	auto georeferencer = Core::make_ptr<WorldGeoreferencer>(camera);
-	georeferencer->SetBaseScale({ 0.5, -0.5, -0.5 });
+	auto m_Georeferencer = Core::make_ptr<WorldGeoreferencer>(m_Camera);
+	m_Georeferencer->SetBaseScale({ 0.5, -0.5, -0.5 });
 	//georeferencer->SetBasePoint({ 1741650, 5870027 });
 
 	// Prepare shape renderer
-	auto shapeRenderer = Core::make_ptr<ShapeRenderer>(deviceD3D9, camera, georeferencer);
+	auto shapeRenderer = Core::make_ptr<ShapeRenderer>(deviceD3D9, m_Camera, m_Georeferencer);
 	shapeRenderer->SetDpi(mainWindow->GetDpi());
 	// Prepare ShapeLayer container and assign renderers. ShapeLayer is automatically added to all renderers when inserted into a drawing
 	ShapeDrawing shapeDrawing;
@@ -185,14 +183,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 	shapeLoader->Start();
 
 	// Prepare raster renderer
-	auto rasterRenderer = Core::make_ptr<MonoRasterLayerRenderer>(deviceD3D9, camera, georeferencer);
+	auto rasterRenderer = Core::make_ptr<MonoRasterLayerRenderer>(deviceD3D9, m_Camera, m_Georeferencer);
 	// Prepare RasterLayer container and assign renderers. RasterLayer is automatically added to all renderers when inserted into a drawing	
 	RasterDrawing rasterDrawing;
 	rasterDrawing->Initialize({ rasterRenderer });
 	rasterDrawing->SetTargetCrs(eps3794);
 
 	// Prepare map renderer
-	MapLayerRenderer mapRenderer(deviceD3D9, camera, georeferencer);
+	MapLayerRenderer mapRenderer(deviceD3D9, m_Camera, m_Georeferencer);
 	mapRenderer->EnableTextureFiltering(true);
 	mapRenderer->SwapRedBlueColors(true); // 
 	mapRenderer->SetTargetCrs(eps3794);
@@ -214,13 +212,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 	ThreadWorker processingThread("Processing thread", new_thread, Platform::Infinite());
 		
 	
-	CanvasHelper canvasHelper(camera, georeferencer, shapeDrawing);
+	CanvasHelper canvasHelper(m_Camera, m_Georeferencer, shapeDrawing);
 
 	applicationInstance->GetWorker().Post([&] { canvasHelper.PanToPoint(Geometry::Point3d(499500, 113000, 0)); });
 	applicationInstance->GetWorker().Post([&] { std::filesystem::remove_all("tmp\\"); });
 	
 	std::string m_LASFilename;
-	//std::string m_Data;
+	Geometry::Point3d m_SelectionPoint;
 
 	//
 	// Prepare initial data for visualization
@@ -284,6 +282,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 		file.close();
 	};
 
+	auto GetGeoreferencedScreenCoordinates = [&](const Geometry::Point2i& screenCoordinates)
+	{
+		auto world = m_Camera->ScreenToWorldCoordinates(screenCoordinates);
+		auto geo = m_Georeferencer->WorldToGeoreferencedCoordinates(world.cast<Geometry::Point3d>());
+		geo.Z = 0;
+		return geo;
+	};
+
+
 	//
 	// Event handlers
 	//
@@ -301,35 +308,64 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 	auto lastUpdateStatus = std::chrono::high_resolution_clock::now();
 	canvas->SetMouseEvent(MouseEventType::MouseMove, [&](const Mouse& mouse) 
 	{
-		auto world = camera->ScreenToWorldCoordinates(mouse.CurrentPosition2());
-		auto geo = georeferencer->WorldToGeoreferencedCoordinates(world.cast<Point3d>());
-		geo.Z = 0;
+		auto currPos = GetGeoreferencedScreenCoordinates(mouse.CurrentPosition2());
 
 		auto updateStatus = std::chrono::high_resolution_clock::now();
 		if(std::chrono::duration_cast<std::chrono::milliseconds>(updateStatus - lastUpdateStatus).count() > 64)
 		{
-			auto latLon = geographicTransform.TransformCoordinate(geo);
+			auto latLon = geographicTransform.TransformCoordinate(currPos);
 
 			// This file is saved as UTF-8 with BOM which means utf8 is supported by GF Apis (std::string)
-			statusBar->SetItemText("coordinates", Core::String::Format("%.2f m\n%.2f m", geo.X, geo.Y));
+			statusBar->SetItemText("coordinates", Core::String::Format("%.2f m\n%.2f m", currPos.X, currPos.Y));
 			statusBar->SetItemText("longlat", Core::String::Format("%f°\n%f°", latLon.X, latLon.Y));
-			statusBar->SetItemText("zoom", Core::String::Format("🔎 %.2f", abs(camera->GetPosition2().Z)));
+			statusBar->SetItemText("zoom", Core::String::Format("🔎 %.2f", abs(m_Camera->GetPosition2().Z)));
 
 			lastUpdateStatus = updateStatus;
+		}
+
+		if(mouse[MK_LBUTTON | MK_CONTROL])
+		{
+			Geometry::BoundingBox2d bb;
+			bb.Expand2d(m_SelectionPoint);
+			bb.Expand2d(currPos);
+
 		}
 		shapeRenderer->Update(true);
 	});
 
 	canvas->SetMouseEvent(MouseEventType::LButtonDown, [&](const Mouse& mouse) 
 	{
-		canvas->SetCursor(MouseCursor::SizeAll);
+		auto currPos = mouse.CurrentPosition2();
 
+		if(mouse[MK_CONTROL])
+		{
+			m_SelectionPoint = GetGeoreferencedScreenCoordinates(currPos);
+		}
+		else
+		{
+			canvas->SetCursor(MouseCursor::SizeAll);
+		}
 	});
 
 	canvas->SetMouseEvent(MouseEventType::LButtonUp, [&](const Mouse& mouse) 
 	{
-		canvas->SetCursor(MouseCursor::Arrow);
+		auto currPos = mouse.CurrentPosition2();
 
+		/*Point2i lastPos = m_LastMouseDownLocation;
+		Point2i currPos = mouse.CurrentPosition2();
+		auto geo = GetGeoreferencedScreenCoordinates(currPos);
+
+		BoundingBox2d bbox;
+		bbox.Expand2d(geo);*/
+
+		if(mouse[MK_CONTROL])
+		{//create bb from selection
+			auto secondPoint = GetGeoreferencedScreenCoordinates(currPos);
+
+
+		}
+
+		canvas->SetCursor(MouseCursor::Arrow);
 	});
 
 	canvas->SetMouseEvent(MouseEventType::RButtonUp, [&](const Mouse& mouse) {
@@ -343,7 +379,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 		auto updateStatus = std::chrono::high_resolution_clock::now();
 		if(std::chrono::duration_cast<std::chrono::milliseconds>(updateStatus - lastUpdateStatus).count() > 64)
 		{
-			statusBar->SetItemText("zoom", Core::String::Format("🔎 %.2f", abs(camera->GetPosition2().Z)));
+			statusBar->SetItemText("zoom", Core::String::Format("🔎 %.2f", abs(m_Camera->GetPosition2().Z)));
 			lastUpdateStatus = updateStatus;
 		}
 	});
@@ -628,7 +664,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 	
 	auto ClassifyHaouses = [&](std::string LasFile) mutable
 	{
-		Platform::Windows::Console::Console console;s
+		Platform::Windows::Console::Console console;
 		console->EnableVirtualTerminalSequences(true);
 
 		GF::Extensions::LidarProcessing::GeneralProcessingSettings genericParams;
