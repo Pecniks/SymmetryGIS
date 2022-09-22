@@ -42,7 +42,7 @@ END
 
 STRINGTABLE 
 BEGIN
-    cmdGroup_Classify_LabelTitle_RESID L"Classify" /* LabelTitle cmdGroup_Classify_LabelTitle_RESID: (null) */
+    cmdGroup_Lidar_LabelTitle_RESID L"LiDAR" /* LabelTitle cmdGroup_Lidar_LabelTitle_RESID: (null) */
 END
 
 STRINGTABLE 
@@ -84,25 +84,27 @@ END
 ID_SETTINGS_LargeImages_RESID    IMAGE    "UI\\settings.png" /* LargeImages ID_SETTINGS_LargeImages_RESID: (null) */
 STRINGTABLE 
 BEGIN
-    ID_SHOW_LIDAR_LabelTitle_RESID L"LiDAR" /* LabelTitle ID_SHOW_LIDAR_LabelTitle_RESID: (null) */
-END
-
-STRINGTABLE 
-BEGIN
     ID_SYMMETRY_OTHER_LabelTitle_RESID L"Symmetry" /* LabelTitle ID_SYMMETRY_OTHER_LabelTitle_RESID: (null) */
 END
 
-ID_SYMMETRY_OTHER_LargeImages_RESID    IMAGE    "UI\\settings.png" /* LargeImages ID_SYMMETRY_OTHER_LargeImages_RESID: (null) */
 STRINGTABLE 
 BEGIN
-    ID_SYMMETRY_GEMMA_LabelTitle_RESID L"Symmetry" /* LabelTitle ID_SYMMETRY_GEMMA_LabelTitle_RESID: (null) */
+    ID_SYMMETRY_LUKAC_LabelTitle_RESID L"Lukac" /* LabelTitle ID_SYMMETRY_LUKAC_LabelTitle_RESID: (null) */
 END
 
-ID_SYMMETRY_GEMMA_LargeImages_RESID    IMAGE    "UI\\settings.png" /* LargeImages ID_SYMMETRY_GEMMA_LargeImages_RESID: (null) */
 STRINGTABLE 
 BEGIN
-    ID_CLASSIFY_LIDAR_LabelTitle_RESID L"Houses" /* LabelTitle ID_CLASSIFY_LIDAR_LabelTitle_RESID: (null) */
+    ID_SYMMETRY_NERAT_LabelTitle_RESID L"Nerat" /* LabelTitle ID_SYMMETRY_NERAT_LabelTitle_RESID: (null) */
 END
 
-ID_CLASSIFY_LIDAR_LargeImages_RESID    IMAGE    "UI\\settings.png" /* LargeImages ID_CLASSIFY_LIDAR_LargeImages_RESID: (null) */
+STRINGTABLE 
+BEGIN
+    ID_CLASSIFY_LIDAR_LabelTitle_RESID L"Classify" /* LabelTitle ID_CLASSIFY_LIDAR_LabelTitle_RESID: (null) */
+END
+
+STRINGTABLE 
+BEGIN
+    ID_LIDAR_HOUSES_LabelTitle_RESID L"Find Houses" /* LabelTitle ID_LIDAR_HOUSES_LabelTitle_RESID: (null) */
+END
+
 APPLICATION_RIBBON    UIFILE    "RibbonUI.bml"

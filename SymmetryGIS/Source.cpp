@@ -217,9 +217,15 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 	applicationInstance->GetWorker().Post([&] { canvasHelper.PanToPoint(Geometry::Point3d(499500, 113000, 0)); });
 	applicationInstance->GetWorker().Post([&] { std::filesystem::remove_all("tmp\\"); });
 	
+	///// For drawing
+	ShapeLayer m_Selection = ShapeLayer(SpecificGeometryType::PolygonZ);
+	m_Selection->GetStyle().PointSymbol().Show(false);
+	shapeRenderer->CreateLayerObject(m_Selection);
+	shapeRenderer->ChangeToSupportLayer(m_Selection);
+		
 	std::string m_LASFilename;
-	Geometry::Point3d m_SelectionPoint;
-
+	Geometry::Point3d m_SelectionPointDown;
+	BoundingBox2d SelectionBB;
 	//
 	// Prepare initial data for visualization
 	//
@@ -290,7 +296,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 		return geo;
 	};
 
-
 	//
 	// Event handlers
 	//
@@ -326,20 +331,44 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 		if(mouse[MK_LBUTTON | MK_CONTROL])
 		{
 			Geometry::BoundingBox2d bb;
-			bb.Expand2d(m_SelectionPoint);
+			bb.Expand2d(m_SelectionPointDown);
 			bb.Expand2d(currPos);
 
+			if (m_Selection.size() > 0)
+			{
+				auto obj = m_Selection[0];
+				if (obj[0].Count() > 0)
+				{
+					auto lock = obj.Lock();
+					obj[0].Point(0) = { bb.Min.X, bb.Min.Y, 0.0 };
+					obj[0].Point(1) = { bb.Max.X, bb.Min.Y, 0.0 };
+					obj[0].Point(2) = { bb.Max.X, bb.Max.Y, 0.0 };
+					obj[0].Point(3) = { bb.Min.X, bb.Max.Y, 0.0 };
+					obj[0].Point(4) = { bb.Min.X, bb.Min.Y, 0.0 };
+					obj->UpdateLayerBounds();
+				}
+			}
 		}
 		shapeRenderer->Update(true);
 	});
 
 	canvas->SetMouseEvent(MouseEventType::LButtonDown, [&](const Mouse& mouse) 
 	{
-		auto currPos = mouse.CurrentPosition2();
 
 		if(mouse[MK_CONTROL])
 		{
-			m_SelectionPoint = GetGeoreferencedScreenCoordinates(currPos);
+			m_SelectionPointDown = GetGeoreferencedScreenCoordinates(mouse.CurrentPosition2());
+			
+			m_Selection->ClearLayer();
+			//if (!m_Selection->ContainsAttribute("id"))
+			//{
+			//	m_Selection->InsertHeaderObject("id", DataType::Double);
+			//}
+			ShapePart part(5);
+			ShapeObject select = m_Selection->CreateShapeObject({ part }, {});
+			//select[0].Point(0) = { bb.Min.X, bb.Min.Y, 0.0 };
+			//select->SetAttributeValue("id", M_SELECTID);
+			//shapeDrawing->OnLMouseDown(mouse, m_SelectionPointDown);
 		}
 		else
 		{
@@ -351,19 +380,33 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 	{
 		auto currPos = mouse.CurrentPosition2();
 
-		/*Point2i lastPos = m_LastMouseDownLocation;
-		Point2i currPos = mouse.CurrentPosition2();
-		auto geo = GetGeoreferencedScreenCoordinates(currPos);
-
-		BoundingBox2d bbox;
-		bbox.Expand2d(geo);*/
-
 		if(mouse[MK_CONTROL])
 		{//create bb from selection
 			auto secondPoint = GetGeoreferencedScreenCoordinates(currPos);
+			if (secondPoint == m_SelectionPointDown)
+			{//picking polygone
+				int  stop = 1;
 
+				if (shapeDrawing->GetLayerCount() > 0)
+				{
+					auto layer = shapeDrawing->GetLayerFromIndex(0);
+					auto a = layer[0];
+					
+				}
 
+			}
+			else
+			{// selecting area
+				if (m_Selection.size() > 0)
+				{
+					auto obj = m_Selection[0];
+					SelectionBB = obj->GetBoundingBox2d();
+				}
+
+			}
 		}
+		shapeDrawing->Redraw(m_Selection);
+		shapeDrawing->Redraw();
 
 		canvas->SetCursor(MouseCursor::Arrow);
 	});
@@ -408,39 +451,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 			shapeDrawing->Clear();
 			rasterDrawing->Clear();
 			lasContainer->Clear();
+			m_Selection->ClearLayer();
 	});
-
-	ribbon->SetOnCommandExecute(ID_SHOW_LIDAR, [&]
-	{
-		if(ribbon->IsToggled(ID_SHOW_LIDAR))
-		{
-			// Submit lidar rendering to background thread
-			processingThread.Post([uiThread, lasContainer, rasterDrawing, l_hillshade_colormap]() mutable
-								  {
-									  for(int i = 0; i< lasContainer->CountLasObjects(); i++)									  
-									  //for(auto& addedLas : added)
-									  {
-										  auto addedLas = lasContainer->GetLasObject(i);
-										  auto raster = lasContainer->CreateLasRasterLayer(addedLas);
-										  lasContainer->GenerateLasRasterObjects(raster, 1.0, GenerateLasRasterObjectProperties(true, true, {2, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18}));
-										  // Submit rendered raster to the ui thread
-										  uiThread->Post([raster, rasterDrawing, l_hillshade_colormap]() mutable
-														 {
-															 raster[0]->SetCustomColorMapKey("Hillshade");
-															 raster[0]->SetCustomColorMapHandler(l_hillshade_colormap);
-															 rasterDrawing->AddRasterLayer(raster);
-														 });
-									  }
-								  });
-		}
-		else
-		{
-			shapeDrawing->Clear();
-			rasterDrawing->Clear();
-		}
-	});
-
-	
 
 	ribbon->SetOnCommandExecute(ID_SWITCHPROJ, [&]{
 		CrsPickerWindow crsPicker;
@@ -479,10 +491,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 	//					  {
 	//						  return;
 	//					  }
-
 	//					  int classification = (int)lasPoint.Classification();
 	//					  if(!(classification >= 0 && classification < (int)m_S
-
 	//						   ries.size()))
 	//					  {
 	//						  return;
@@ -662,7 +672,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 		//}
 	});
 	
-	auto ClassifyHaouses = [&](std::string LasFile) mutable
+	auto ClassifyLiDAR = [&](std::string LasFile) mutable
 	{
 		Platform::Windows::Console::Console console;
 		console->EnableVirtualTerminalSequences(true);
@@ -697,7 +707,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 		GF::Extensions::LidarProcessing::BuildingsProcessing buildings(groundFile, dtmFile, GF::Extensions::LidarProcessing::PathDepth::GroundFolder);
 		std::string buildingsFile = buildings.Run(genericParams, buildingParams, nullptr);
 
-		//m_LASFilename = buildingsFile;
+		m_LASFilename = buildingsFile;
 		//return;
 		// Classify Vegetation
 		APPRESULT_DEV_INFORMATION("Classifying Vegetation");
@@ -708,39 +718,33 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 		vegetationParams.HighVegetation = 3.0;
 		GF::Extensions::LidarProcessing::VegetationProcessing vegetation(buildingsFile, dtmFile, GF::Extensions::LidarProcessing::PathDepth::BuildingFolder);
 		std::string vegetationFile = vegetation.Run(genericParams, vegetationParams, nullptr);
-		m_LASFilename = vegetationFile;
+		//m_LASFilename = vegetationFile;
 		
 		APPRESULT_DEV_INFORMATION("Classification DONE");
 	};
 
-	ribbon->SetOnCommandExecute(ID_CLASSIFY_LIDAR, [&] {
+	ribbon->SetOnCommandExecute(ID_CLASSIFY_LIDAR, [&] 
+	{
 		APPRESULT_DEV_INFORMATION("Classify");
 
-		auto addedLas = lasContainer->GetLasObject(0);
-		ClassifyHaouses(m_LASFilename);
+		if (lasContainer->CountLasObjects() > 0)
+		{
+			auto addedLas = lasContainer->GetLasObject(0);
+			ClassifyLiDAR(m_LASFilename);
 
-		shapeDrawing->Clear();
-		rasterDrawing->Clear();
-		lasContainer->Clear();
+			shapeDrawing->Clear();
+			rasterDrawing->Clear();
+			lasContainer->Clear();
 
-		auto lasObj = lasContainer->AddLas(m_LASFilename);
-		canvasHelper.ZoomToBoundingBox(lasObj->GetBoundingBox2d());
+			auto lasObj = lasContainer->AddLas(m_LASFilename);
+			canvasHelper.ZoomToBoundingBox(lasObj->GetBoundingBox2d());
 
-		RenderWholeLas();
-		//RenderOnlyHouses();
+			RenderWholeLas();
+		}
 	});
-
-
-
-	ribbon->SetOnCommandExecute(ID_SYMMETRY_OTHER, [&] {
-		APPRESULT_DEV_INFORMATION("Cehi");
-
-
-	});
-
-	ribbon->SetOnCommandExecute(ID_SYMMETRY_GEMMA, [&] {
-		APPRESULT_DEV_INFORMATION("GEMMA");
-
+	
+	ribbon->SetOnCommandExecute(ID_LIDAR_HOUSES, [&] 
+	{
 		Platform::Windows::Console::Console console;
 		console->EnableVirtualTerminalSequences(true);
 
@@ -749,7 +753,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 		lasClassMask->GetImage()->SaveToFile("ClassMask_Raw.tif");
 
 		// Close small holes in rooftops
-		ClosingByReconstruction(lasClassMask, 3);
+		ClosingByReconstruction(lasClassMask, 1);
 		lasClassMask->GetImage()->SaveToFile("ClassMask_Closed.tif");
 
 		// Limit classMask to the buildings
@@ -766,6 +770,37 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 		rasterDrawing->Clear();
 		lasContainer->Clear();
 		shapeDrawing->AddShapeLayer(buildings);
+	});
+
+	ribbon->SetOnCommandExecute(ID_SYMMETRY_OTHER, [&] {
+		APPRESULT_DEV_INFORMATION("Cehi");
+
+
+	});
+
+	ribbon->SetOnCommandExecute(ID_SYMMETRY_NERAT, [&]
+	{
+		APPRESULT_DEV_INFORMATION("Nerat");
+		//todo
+	});
+
+	ribbon->SetOnCommandExecute(ID_SYMMETRY_LUKAC, [&] 
+	{
+		APPRESULT_DEV_INFORMATION("Lukac");
+
+		LAS::File lasfile(m_LASFilename);
+		std::vector<LAS::Data::Vector3d> list;
+		for (size_t i=0; i < lasfile.size(); i++)
+		{
+			auto pt = lasfile.TransformCoord(lasfile[i]);
+			Geometry::Point2d tmp(pt.x, pt.y);
+			if (SelectionBB.Contains(tmp))
+			{
+				list.push_back(pt);
+			}
+		}		
+		//TODO: call Lukac alg with selected points.
+		int stop = 1;
 	});
 
 	//
