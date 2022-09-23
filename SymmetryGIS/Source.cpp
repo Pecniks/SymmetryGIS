@@ -220,12 +220,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 	///// For drawing
 	ShapeLayer m_Selection = ShapeLayer(SpecificGeometryType::PolygonZ);
 	m_Selection->GetStyle().PointSymbol().Show(false);
+	m_Selection->SetName("Selection");
 	shapeRenderer->CreateLayerObject(m_Selection);
 	shapeRenderer->ChangeToSupportLayer(m_Selection);
 		
 	std::string m_LASFilename;
 	Geometry::Point3d m_SelectionPointDown;
 	BoundingBox2d SelectionBB;
+	std::vector<GF::Spatial::Shape::FeatureIdentifyObject> SelectedObjs;
 	//
 	// Prepare initial data for visualization
 	//
@@ -294,7 +296,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 		auto geo = m_Georeferencer->WorldToGeoreferencedCoordinates(world.cast<Geometry::Point3d>());
 		geo.Z = 0;
 		return geo;
-	};
+	};	
 
 	//
 	// Event handlers
@@ -360,15 +362,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 			m_SelectionPointDown = GetGeoreferencedScreenCoordinates(mouse.CurrentPosition2());
 			
 			m_Selection->ClearLayer();
-			//if (!m_Selection->ContainsAttribute("id"))
-			//{
-			//	m_Selection->InsertHeaderObject("id", DataType::Double);
-			//}
 			ShapePart part(5);
 			ShapeObject select = m_Selection->CreateShapeObject({ part }, {});
-			//select[0].Point(0) = { bb.Min.X, bb.Min.Y, 0.0 };
-			//select->SetAttributeValue("id", M_SELECTID);
-			//shapeDrawing->OnLMouseDown(mouse, m_SelectionPointDown);
 		}
 		else
 		{
@@ -385,24 +380,17 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 			auto secondPoint = GetGeoreferencedScreenCoordinates(currPos);
 			if (secondPoint == m_SelectionPointDown)
 			{//picking polygone
-				int  stop = 1;
-
-				if (shapeDrawing->GetLayerCount() > 0)
-				{
-					auto layer = shapeDrawing->GetLayerFromIndex(0);
-					auto a = layer[0];
-					
-				}
-
+				auto layer = shapeDrawing->FindLayerByName("buildings");
+				SelectedObjs = layer->GetIntersectedObjects(secondPoint);
 			}
 			else
 			{// selecting area
 				if (m_Selection.size() > 0)
 				{
 					auto obj = m_Selection[0];
+					SelectionBB = m_Selection->GetBoundingBox();
 					SelectionBB = obj->GetBoundingBox2d();
 				}
-
 			}
 		}
 		shapeDrawing->Redraw(m_Selection);
@@ -762,14 +750,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 		console.WriteLine("Extracting geometry bounds from: %s", m_LASFilename);
 		// Extract building bounds
 		ShapeLayer buildings = GF::Processing::Features::ShapeFeatureExtraction::ExtractPolygonBounds(lasClassMask, 1, false, false, false);
-
+		buildings->SetName("buildings");
+		//buildings->InsertHeaderObject("id", DataType::Integer);
+		//auto obj = buildings->GetShapeObject(0);
+		//obj->SetAttributeValue("id", 33); 
 		// Save result
-		GF::Api::Spatial::Shape::ToGeopackage(buildings->AsInterface(), "buildings.gpkg");
+		//GF::Api::Spatial::Shape::ToGeopackage(buildings->AsInterface(), "buildings.gpkg");
 
 		shapeDrawing->Clear();
 		rasterDrawing->Clear();
 		lasContainer->Clear();
 		shapeDrawing->AddShapeLayer(buildings);
+		int stop = 1;
 	});
 
 	ribbon->SetOnCommandExecute(ID_SYMMETRY_OTHER, [&] {
