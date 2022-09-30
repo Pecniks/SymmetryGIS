@@ -1,2 +1,2 @@
-# SymetrieGIS
+# SymmetryGIS
 

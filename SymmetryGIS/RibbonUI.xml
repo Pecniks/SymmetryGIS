@@ -5,12 +5,16 @@
   <Application.Commands>
     <!-- Tabs -->
     <Command Name="cmdTab_Home" LabelTitle="Home" />
-    <Command Name="cmdTab_Tab" LabelTitle="Tab" />
+    <Command Name="cmdTab_Symmetry" LabelTitle="Symmetry" />
 
     <!-- Groups -->
     <Command Name="cmdGroup_File" LabelTitle="File" />
     <Command Name="cmdGroup_Projection" LabelTitle="Projection" />
     <Command Name="cmdGroup_Show" LabelTitle="Show" />
+    <Command Name="cmdGroup_Gemma" LabelTitle="Gemma" />
+    <Command Name="cmdGroup_Other" LabelTitle="Other" />
+    <Command Name="cmdGroup_Lidar" LabelTitle="LiDAR" />
+    
 
     <!-- Optional Symbol and Id properties are not defined for the following commands.
     A Symbol same as the name of the command
@@ -56,7 +60,41 @@
         <Image Source="UI/OpenFileL.bmp"/>
       </Command.SmallImages>-->
     </Command>
-    <Command Name="cmdShowLiDAR" LabelTitle="LiDAR" Symbol="ID_SHOW_LIDAR">
+    <!--<Command Name="cmdShowLiDAR" LabelTitle="LiDAR" Symbol="ID_SHOW_LIDAR">
+    </Command>-->
+    <Command Name="cmdButton_Other_Symmetry" LabelTitle="Symmetry" Symbol="ID_SYMMETRY_OTHER">
+      <!--<Command.LargeImages>
+        <Image Source="UI/settings.png"/>
+      </Command.LargeImages>-->
+      <!--<Command.SmallImages>
+        <Image Source="UI/OpenFileL.bmp"/>
+      </Command.SmallImages>-->
+    </Command>
+    <Command Name="cmdButton_Gemma_Lukac" LabelTitle="Lukac" Symbol="ID_SYMMETRY_LUKAC">
+      <!--<Command.LargeImages>
+        <Image Source="UI/settings.png"/>
+      </Command.LargeImages>-->
+      <!--<Command.SmallImages>
+        <Image Source="UI/OpenFileL.bmp"/>
+      </Command.SmallImages>-->
+    </Command>
+    <Command Name="cmdButton_Gemma_Nerat" LabelTitle="Nerat" Symbol="ID_SYMMETRY_NERAT">
+      <!--<Command.LargeImages>
+        <Image Source="UI/settings.png"/>
+      </Command.LargeImages>-->
+      <!--<Command.SmallImages>
+        <Image Source="UI/OpenFileL.bmp"/>
+      </Command.SmallImages>-->
+    </Command>
+    <Command Name="cmdButton_Gemma_Classify" LabelTitle="Classify" Symbol="ID_CLASSIFY_LIDAR">
+      <!--<Command.LargeImages>
+        <Image Source="UI/settings.png"/>
+      </Command.LargeImages>-->
+      <!--<Command.SmallImages>
+        <Image Source="UI/OpenFileL.bmp"/>
+      </Command.SmallImages>-->
+    </Command>
+    <Command Name="cmdButton_Gemma_Houses" LabelTitle="Find Houses" Symbol="ID_LIDAR_HOUSES">
       <!--<Command.LargeImages>
         <Image Source="UI/settings.png"/>
       </Command.LargeImages>-->
@@ -101,22 +139,31 @@
           <Group CommandName="cmdGroup_Projection" SizeDefinition="OneButton">
             <Button CommandName="cmdButton_SwitchProjection"/>
           </Group>
-          <Group CommandName="cmdGroup_Show" >
+          <!--<Group CommandName="cmdGroup_Show" >
             <CheckBox CommandName="cmdShowLiDAR" />
-            <!--<Button CommandName="cmdShowLiDAR"/>-->
+            --><!--<Button CommandName="cmdShowLiDAR"/>--><!--
+          </Group>-->
+          <Group CommandName="cmdGroup_Lidar" SizeDefinition="TwoButtons">
+            <Button CommandName="cmdButton_Gemma_Classify" />
+            <Button CommandName="cmdButton_Gemma_Houses" />            
           </Group>
         </Tab>
-        <Tab CommandName="cmdTab_Tab">
+        <Tab CommandName="cmdTab_Symmetry">
           <Tab.ScalingPolicy>
             <ScalingPolicy>
               <ScalingPolicy.IdealSizes>
-                <!--<Scale Group="IDC_CMD_TABHOME_GROUPLOAD" Size="Medium" />-->
+                <Scale Group="cmdGroup_Other" Size="Large" />
+                <Scale Group="cmdGroup_Gemma" Size="Large" />
               </ScalingPolicy.IdealSizes>
             </ScalingPolicy>
           </Tab.ScalingPolicy>
-          <!--<Group CommandName="IDC_CMD_TABHOME_GROUPGROUP">
-            <Button CommandName="IDC_CMD_TABHOME_GROUPLOAD_BUTTON"/>            
-          </Group>-->
+          <Group CommandName="cmdGroup_Other" SizeDefinition="OneButton">
+            <Button CommandName="cmdButton_Other_Symmetry"/>
+          </Group>
+          <Group CommandName="cmdGroup_Gemma" SizeDefinition="TwoButtons">
+            <Button CommandName="cmdButton_Gemma_Nerat"/>
+            <Button CommandName="cmdButton_Gemma_Lukac"/>
+          </Group>
         </Tab>
 
       </Ribbon.Tabs>
