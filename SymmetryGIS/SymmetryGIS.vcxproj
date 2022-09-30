@@ -199,6 +199,7 @@ set /a 0</Command>
     </ClCompile>
     <ClCompile Include="Source.cpp" />
     <ClCompile Include="SymLib\symetry3d.cpp" />
+    <ClCompile Include="SymLib\voxelgrid.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="PropertySheet.props" />
@@ -207,7 +208,9 @@ set /a 0</Command>
     <ClInclude Include="GemmaFusion.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="RibbonUI.h" />
+    <ClInclude Include="SymLib\struct_const.h" />
     <ClInclude Include="SymLib\symetry3d.h" />
+    <ClInclude Include="SymLib\voxelgrid.h" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="RibbonUI.xml">

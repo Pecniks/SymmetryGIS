@@ -797,7 +797,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 			if(shapesList.size() > 0)
 			{
 				LAS::File lasfile(m_LASFilename);
-				std::vector<LAS::Data::Vector3d> list;
+				std::vector<Symmetry::Point3D> list;
 				for(size_t i = 0; i < lasfile.size(); i++)
 				{
 					auto pt = lasfile.TransformCoord(lasfile[i]);
@@ -808,12 +808,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 						for(auto polygon : shape->GetComposedPolygons())
 						{
 							if(polygon.Contains2d(tmp))
-								list.push_back(pt);
+								list.emplace_back(tmp.X, tmp.Y, tmp.Z);
 						}
 					}
 				}
+				
+				Symmetry::Symetry3D sym;
+				auto result = sym.determineSymetryPlane(list);
 				int stop = 1;
-				//TODO: Call Nerat algorithm for symetrie	
 			}
 		}
 	});

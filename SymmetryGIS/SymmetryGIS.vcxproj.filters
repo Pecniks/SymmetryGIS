@@ -23,6 +23,9 @@
     <ClCompile Include="SymLib\symetry3d.cpp">
       <Filter>SymLib</Filter>
     </ClCompile>
+    <ClCompile Include="SymLib\voxelgrid.cpp">
+      <Filter>SymLib</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="PropertySheet.props" />
@@ -38,6 +41,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="SymLib\symetry3d.h">
+      <Filter>SymLib</Filter>
+    </ClInclude>
+    <ClInclude Include="SymLib\voxelgrid.h">
+      <Filter>SymLib</Filter>
+    </ClInclude>
+    <ClInclude Include="SymLib\struct_const.h">
       <Filter>SymLib</Filter>
     </ClInclude>
   </ItemGroup>
