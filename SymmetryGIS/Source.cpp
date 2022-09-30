@@ -6,6 +6,8 @@
 
 #include <GF/Extensions/Extensions.h>
 
+#include "SymLib/symetry3d.h"
+
 #pragma comment(lib, "version.lib")
 #pragma comment (lib, "UxTheme.lib")
 #pragma comment(lib, "EzLasLib.lib")

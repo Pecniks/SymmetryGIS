@@ -20,6 +20,9 @@
     <ClCompile Include="pch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="SymLib\symetry3d.cpp">
+      <Filter>SymLib</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="PropertySheet.props" />
@@ -33,6 +36,9 @@
     </ClInclude>
     <ClInclude Include="RibbonUI.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SymLib\symetry3d.h">
+      <Filter>SymLib</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
