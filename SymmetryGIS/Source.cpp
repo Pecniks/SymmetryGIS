@@ -381,12 +381,26 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 			if (secondPoint == m_SelectionPointDown)
 			{//picking polygone
 				auto layer = shapeDrawing->FindLayerByName("buildings");
-				SelectedObjs = layer->GetIntersectedObjects(secondPoint);
+				if(layer!= nullptr)
+				{
+					layer->DeselectAllShapes();
+					for(auto shape : layer->GetIntersectedObjects(secondPoint))
+					{
+						shape.GetShapeObject()->Select(true);
+					}
+					//SelectedObjs = layer->GetIntersectedObjects(secondPoint);
+					//SelectedObjs[0].GetShapeObject()->Select(true);
+				}
 			}
 			else
 			{// selecting area
 				if (m_Selection.size() > 0)
 				{
+					auto layer = shapeDrawing->FindLayerByName("buildings");
+					if(layer != nullptr)
+					{
+						layer->DeselectAllShapes();
+					}
 					auto obj = m_Selection[0];
 					SelectionBB = m_Selection->GetBoundingBox();
 					SelectionBB = obj->GetBoundingBox2d();
@@ -773,7 +787,33 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 	ribbon->SetOnCommandExecute(ID_SYMMETRY_NERAT, [&]
 	{
 		APPRESULT_DEV_INFORMATION("Nerat");
-		//todo
+
+		auto layer = shapeDrawing->FindLayerByName("buildings");
+		if(layer != nullptr)
+		{
+			auto shapesList = layer->GetSelectedShapes();
+			if(shapesList.size() > 0)
+			{
+				LAS::File lasfile(m_LASFilename);
+				std::vector<LAS::Data::Vector3d> list;
+				for(size_t i = 0; i < lasfile.size(); i++)
+				{
+					auto pt = lasfile.TransformCoord(lasfile[i]);
+					Geometry::Point3d tmp(pt.x, pt.y, pt.z);
+
+					for(auto shape : shapesList)
+					{
+						for(auto polygon : shape->GetComposedPolygons())
+						{
+							if(polygon.Contains2d(tmp))
+								list.push_back(pt);
+						}
+					}
+				}
+				int stop = 1;
+				//TODO: Call Nerat algorithm for symetrie	
+			}
+		}
 	});
 
 	ribbon->SetOnCommandExecute(ID_SYMMETRY_LUKAC, [&] 
