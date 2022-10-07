@@ -807,14 +807,32 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 					{
 						for(auto polygon : shape->GetComposedPolygons())
 						{
-							if(polygon.Contains2d(tmp))
-								list.emplace_back(tmp.X, tmp.Y, tmp.Z);
+							polygon.
+								if(polygon.Contains2d(tmp))
+									list.emplace_back(tmp.X, tmp.Y, tmp.Z);
 						}
 					}
 				}
-				
+
 				Symmetry::Symetry3D sym;
 				auto result = sym.determineSymetryPlane(list);
+
+				//check
+			/*	Utils::Vector3d normal(result.normal.x, result.normal.z, result.normal.y);
+				Utils::Vector3d vec(0, 0, 1);
+				auto smer = Utils::CrossProd(normal, vec);
+				Point2d smer1 = smer * 
+
+				for(auto shape : shapesList)
+				{
+					for(auto polygon : shape->GetComposedPolygons())
+					{
+						if(Geometry::Utility::LineIntersection())
+						{
+							int stop = 1;
+						}
+					}
+				}*/
 				int stop = 1;
 			}
 		}
