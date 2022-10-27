@@ -193,6 +193,15 @@ set /a 0</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="LukacSymmetry\local_symmetry\helper_classes\anglerangeevent.cpp" />
+    <ClCompile Include="LukacSymmetry\local_symmetry\helper_classes\linesegment.cpp" />
+    <ClCompile Include="LukacSymmetry\local_symmetry\helper_classes\plane.cpp" />
+    <ClCompile Include="LukacSymmetry\local_symmetry\helper_classes\point.cpp" />
+    <ClCompile Include="LukacSymmetry\local_symmetry\helper_classes\tolerance.cpp" />
+    <ClCompile Include="LukacSymmetry\local_symmetry\helper_classes\voxel.cpp" />
+    <ClCompile Include="LukacSymmetry\local_symmetry\localsymmetry.cpp" />
+    <ClCompile Include="LukacSymmetry\local_symmetry\reflectionsymmetry.cpp" />
+    <ClCompile Include="LukacSymmetry\local_symmetry\rotationalsymmetry.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
@@ -206,6 +215,17 @@ set /a 0</Command>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="GemmaFusion.h" />
+    <ClInclude Include="LukacSymmetry\local_symmetry\helper_classes\anglerangeevent.h" />
+    <ClInclude Include="LukacSymmetry\local_symmetry\helper_classes\color.h" />
+    <ClInclude Include="LukacSymmetry\local_symmetry\helper_classes\linesegment.h" />
+    <ClInclude Include="LukacSymmetry\local_symmetry\helper_classes\plane.h" />
+    <ClInclude Include="LukacSymmetry\local_symmetry\helper_classes\point.h" />
+    <ClInclude Include="LukacSymmetry\local_symmetry\helper_classes\positionfromplane.h" />
+    <ClInclude Include="LukacSymmetry\local_symmetry\helper_classes\tolerance.h" />
+    <ClInclude Include="LukacSymmetry\local_symmetry\helper_classes\voxel.h" />
+    <ClInclude Include="LukacSymmetry\local_symmetry\localsymmetry.h" />
+    <ClInclude Include="LukacSymmetry\local_symmetry\reflectionsymmetry.h" />
+    <ClInclude Include="LukacSymmetry\local_symmetry\rotationalsymmetry.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="RibbonUI.h" />
     <ClInclude Include="SymLib\struct_const.h" />

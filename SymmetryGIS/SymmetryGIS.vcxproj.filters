@@ -12,6 +12,12 @@
     <Filter Include="SymLib">
       <UniqueIdentifier>{18ed4f64-3195-44a3-9785-0dd46bd895df}</UniqueIdentifier>
     </Filter>
+    <Filter Include="LukacSymmetry">
+      <UniqueIdentifier>{8cc12e77-5f1a-4f9d-b551-6ef6374a1a79}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="LukacSymmetry\Helper">
+      <UniqueIdentifier>{93034a07-e781-49e9-a118-4c8a89d2cc5e}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source.cpp">
@@ -25,6 +31,33 @@
     </ClCompile>
     <ClCompile Include="SymLib\voxelgrid.cpp">
       <Filter>SymLib</Filter>
+    </ClCompile>
+    <ClCompile Include="LukacSymmetry\local_symmetry\localsymmetry.cpp">
+      <Filter>LukacSymmetry</Filter>
+    </ClCompile>
+    <ClCompile Include="LukacSymmetry\local_symmetry\reflectionsymmetry.cpp">
+      <Filter>LukacSymmetry</Filter>
+    </ClCompile>
+    <ClCompile Include="LukacSymmetry\local_symmetry\rotationalsymmetry.cpp">
+      <Filter>LukacSymmetry</Filter>
+    </ClCompile>
+    <ClCompile Include="LukacSymmetry\local_symmetry\helper_classes\anglerangeevent.cpp">
+      <Filter>LukacSymmetry\Helper</Filter>
+    </ClCompile>
+    <ClCompile Include="LukacSymmetry\local_symmetry\helper_classes\linesegment.cpp">
+      <Filter>LukacSymmetry\Helper</Filter>
+    </ClCompile>
+    <ClCompile Include="LukacSymmetry\local_symmetry\helper_classes\plane.cpp">
+      <Filter>LukacSymmetry\Helper</Filter>
+    </ClCompile>
+    <ClCompile Include="LukacSymmetry\local_symmetry\helper_classes\point.cpp">
+      <Filter>LukacSymmetry\Helper</Filter>
+    </ClCompile>
+    <ClCompile Include="LukacSymmetry\local_symmetry\helper_classes\tolerance.cpp">
+      <Filter>LukacSymmetry\Helper</Filter>
+    </ClCompile>
+    <ClCompile Include="LukacSymmetry\local_symmetry\helper_classes\voxel.cpp">
+      <Filter>LukacSymmetry\Helper</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -48,6 +81,39 @@
     </ClInclude>
     <ClInclude Include="SymLib\struct_const.h">
       <Filter>SymLib</Filter>
+    </ClInclude>
+    <ClInclude Include="LukacSymmetry\local_symmetry\localsymmetry.h">
+      <Filter>LukacSymmetry</Filter>
+    </ClInclude>
+    <ClInclude Include="LukacSymmetry\local_symmetry\reflectionsymmetry.h">
+      <Filter>LukacSymmetry</Filter>
+    </ClInclude>
+    <ClInclude Include="LukacSymmetry\local_symmetry\rotationalsymmetry.h">
+      <Filter>LukacSymmetry</Filter>
+    </ClInclude>
+    <ClInclude Include="LukacSymmetry\local_symmetry\helper_classes\anglerangeevent.h">
+      <Filter>LukacSymmetry\Helper</Filter>
+    </ClInclude>
+    <ClInclude Include="LukacSymmetry\local_symmetry\helper_classes\color.h">
+      <Filter>LukacSymmetry\Helper</Filter>
+    </ClInclude>
+    <ClInclude Include="LukacSymmetry\local_symmetry\helper_classes\linesegment.h">
+      <Filter>LukacSymmetry\Helper</Filter>
+    </ClInclude>
+    <ClInclude Include="LukacSymmetry\local_symmetry\helper_classes\plane.h">
+      <Filter>LukacSymmetry\Helper</Filter>
+    </ClInclude>
+    <ClInclude Include="LukacSymmetry\local_symmetry\helper_classes\point.h">
+      <Filter>LukacSymmetry\Helper</Filter>
+    </ClInclude>
+    <ClInclude Include="LukacSymmetry\local_symmetry\helper_classes\positionfromplane.h">
+      <Filter>LukacSymmetry\Helper</Filter>
+    </ClInclude>
+    <ClInclude Include="LukacSymmetry\local_symmetry\helper_classes\tolerance.h">
+      <Filter>LukacSymmetry\Helper</Filter>
+    </ClInclude>
+    <ClInclude Include="LukacSymmetry\local_symmetry\helper_classes\voxel.h">
+      <Filter>LukacSymmetry\Helper</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

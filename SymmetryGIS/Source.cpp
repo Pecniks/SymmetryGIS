@@ -807,7 +807,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 					{
 						for(auto polygon : shape->GetComposedPolygons())
 						{
-							polygon.
+							//polygon.
 								if(polygon.Contains2d(tmp))
 									list.emplace_back(tmp.X, tmp.Y, tmp.Z);
 						}
