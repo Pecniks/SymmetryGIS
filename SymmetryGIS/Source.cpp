@@ -850,7 +850,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 			Geometry::Point2d tmp(pt.x, pt.y);
 			if (SelectionBB.Contains(tmp))
 			{
+
+
 				list.push_back(pt);
+
+				//ReflectionalSymmetry
+
 			}
 		}		
 		//TODO: call Lukac alg with selected points.

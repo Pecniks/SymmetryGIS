@@ -1,8 +1,8 @@
 #include <pch.h>
 #include <algorithm>
+#include <cmath>
 #include <set>
 
-#include "LAS/Data/nVector.h"
 #include "helper_classes/tolerance.h"
 #include "reflectionsymmetry.h"
 
@@ -23,8 +23,9 @@ void ReflectionSymmetry::removeVoxelsWithoutPairs(std::vector<ReflectionSymmetry
             const Point<float> projection = symmetry.plane.calculateProjectionPoint(voxelPoint, voxelMesh);
 
             // Calculation of the opposite voxel across the symmetry plane.
-            LAS::Data::Vector3d vector(projection.getX() - voxelPoint.getX(), projection.getY() - voxelPoint.getY(), projection.getZ() - voxelPoint.getZ());
-            const Point<float> oppositePoint = voxelPoint + vector * 2.0;
+            Vector3f vector(projection.getX() - voxelPoint.getX(), projection.getY() - voxelPoint.getY(), projection.getZ() - voxelPoint.getZ());
+            Vector3f vectorMultiplied = vector * 2.0;
+            const Point<float> oppositePoint = voxelPoint + vectorMultiplied;
             const int oppositeX = (int)floor((oppositePoint.getX() / voxelMesh.voxelSideSize) - voxelMesh.minX);
             const int oppositeY = (int)floor((oppositePoint.getY() / voxelMesh.voxelSideSize) - voxelMesh.minY);
             const int oppositeZ = (int)floor((oppositePoint.getZ() / voxelMesh.voxelSideSize) - voxelMesh.minZ);
@@ -39,43 +40,6 @@ void ReflectionSymmetry::removeVoxelsWithoutPairs(std::vector<ReflectionSymmetry
             }
         }
     }
-}
-
-// Calculating the percent of interesting line segment sections.
-double ReflectionSymmetry::calculateInterestingPercentInLineSegment(const LineSegment& lineSegment) {
-    // Calculating the number of segments.
-    int interestingSegments = 0;
-    const int segments = (int)(10 * lineSegment.getLength());
-    auto& voxels = LocalSymmetry::getVoxels();
-
-    // Calculating the vector from P1 to P2.
-    Point<float> p1 = lineSegment.getP1();
-    Point<float> p2 = lineSegment.getP2();
-    LAS::Data::Vector3d difference = p2 - p1;
-
-    // Marching on the line segment and calculating
-    // interesting line segment sections.
-    for (int i = 0; i < segments; i++) {
-        double factor = (double)i / segments;
-        LAS::Data::Vector3d p = LAS::Data::Vector3d(
-            p1.getX() + factor * difference.x,
-            p1.getY() + factor * difference.y,
-            p1.getZ() + factor * difference.z
-        );
-
-        // Calculating a voxel position.
-        const int x = (int)floor((p.x - voxelMesh.minX) / voxelMesh.voxelSideSize);
-        const int y = (int)floor((p.y - voxelMesh.minY) / voxelMesh.voxelSideSize);
-        const int z = (int)floor((p.z - voxelMesh.minZ) / voxelMesh.voxelSideSize);
-
-        // If a voxel is interesting, the number of
-        // interesting sections is incremented.
-        if (voxels[z][y][x].getInteresting()) {
-            interestingSegments++;
-        }
-    }
-
-    return (double)interestingSegments / segments;
 }
 
 // Finding simple symmetries.
@@ -101,59 +65,8 @@ std::vector<ReflectionSymmetry> ReflectionSymmetry::findSimpleSymmetries(const s
     return symmetries;
 }
 
-// Splitting a line segment vector into parts, where the lenghts of line segments is below the tolerance.
-std::vector<std::vector<LineSegment>> ReflectionSymmetry::splitLineSegmentVectorIntoParts(
-    const std::vector<LineSegment>& lineSegments,
-    const double tolerance
-)
-{
-    // Creating a vector and pushing a first part.
-    std::vector<std::vector<LineSegment>> splitLineSegments;
-    splitLineSegments.push_back(std::vector<LineSegment>());
-
-    // Iterating through all line segments.
-    for (unsigned long long i = 0; i < lineSegments.size(); i++) {
-        // If no elements in vector, a first line segment is added.
-        if (splitLineSegments.back().size() == 0) {
-            splitLineSegments.back().push_back(lineSegments[i]);
-        }
-        // If a line segment length is inside of the allowed tolerance,
-        // it is added to the same part as the previous one.
-        else if (
-            Tolerance::isInTolerance(
-                splitLineSegments.back()[0].getLength(),
-                lineSegments[i].getLength(),
-                tolerance
-            )
-        )
-        {
-            splitLineSegments.back().push_back(lineSegments[i]);
-        }
-        // If a line segment length is outside of the allowed tolerance,
-        // a new part is created, line segment is added to the new part.
-        else {
-            // If the last part contains only one line
-            // segment, there will be no symmetry.
-            if (splitLineSegments.back().size() == 1) {
-                splitLineSegments.pop_back();
-            }
-
-            splitLineSegments.push_back(std::vector<LineSegment>());
-            splitLineSegments.back().push_back(lineSegments[i]);
-        }
-    }
-
-    // If the last part contains only one line
-    // segment, there will be no symmetry.
-    if (splitLineSegments.back().size() == 1) {
-        splitLineSegments.pop_back();
-    }
-
-    return splitLineSegments;
-}
-
 // Checking whether two line segments represent a reflection symmetry.
-ReflectionSymmetry * ReflectionSymmetry::calculateSimpleReflectionSymmetry(LineSegment& l1, LineSegment& l2, const double tolerance) {
+ReflectionSymmetry* ReflectionSymmetry::calculateSimpleReflectionSymmetry(LineSegment& l1, LineSegment& l2, const double tolerance) {
     // At first, we have to connect the two line segments.
     LineSegment conn1(l1.getP1(), l2.getP1());  // Making a first connection between line segments.
     LineSegment conn2(l1.getP2(), l2.getP2());  // Making a second connection between line segments.
@@ -174,22 +87,23 @@ ReflectionSymmetry * ReflectionSymmetry::calculateSimpleReflectionSymmetry(LineS
     }
 
     // Calculating center points of the both line segments.
-    Point<float> center1 = conn1.getCenterPoint();
-    Point<float> center2 = conn2.getCenterPoint();
+    auto center1 = conn1.getCenterPoint();
+    auto center2 = conn2.getCenterPoint();
 
     // Calculating vectors.
-    LAS::Data::Vector3d axis = (center1 - center2).normalize();
-    LAS::Data::Vector3d V1 = (conn1.getP1() - conn1.getP2()).normalize();
-    LAS::Data::Vector3d V2 = (conn2.getP1() - conn2.getP2()).normalize();
+    auto axis = (center1 - center2).normalize().convert<double>();
+    //Point<double> axiss = axis.convert<double>();
+    auto V1 = (conn1.getP1() - conn1.getP2()).normalize();
+    auto V2 = (conn2.getP1() - conn2.getP2()).normalize();
 
     // If axis cannot be calculated, there is no symmetry.
-    if (std::isnan(axis.x) || std::isnan(axis.y) || std::isnan(axis.z)) {
+    if (std::isnan(axis.getX()) || std::isnan(axis.getY()) || std::isnan(axis.getZ())) {
         return nullptr;
     }
 
     // Calculating the angles between the center line segment and the connections.
-    double angle1 = std::acos(axis.dot(V1));
-    double angle2 = std::acos(axis.dot(V2));
+    double angle1 = std::acos(axis.dot(V1.convert<double>()));
+    double angle2 = std::acos(axis.dot(V2.convert<double>()));
 
     // If both angles are equal (with tolerance) to PI/2, a symmetry is found.
     if ((std::isnan(angle1) || Tolerance::isInTolerance(angle1, M_PI / 2, tolerance)) &&
@@ -197,11 +111,13 @@ ReflectionSymmetry * ReflectionSymmetry::calculateSimpleReflectionSymmetry(LineS
     )
     {
         // Creating a plane and a vector of line segments.
-        LAS::Data::Vector3d point = center1.toVec();
-        if (point.x == 0 && point.y == 0 && point.z == 0) {
-            point = center2.toVec();
+        Vector3d point(center1.getX(), center1.getY(), center1.getZ());
+        if (point.getX() == 0 && point.getY() == 0 && point.getZ() == 0) {
+            point.setX(center2.getX());
+            point.setY(center2.getZ());
+            point.setZ(center2.getZ());
         }
-        Plane plane(point, axis, LAS::Data::Vector3d(0, 0, 1));
+        Plane plane(point, axis, Vector3d(0, 0, 1));
         std::vector<LineSegment> lineSegments { l1, l2 };
 
         return new ReflectionSymmetry(plane, lineSegments);
@@ -218,32 +134,17 @@ std::vector<ReflectionSymmetry> ReflectionSymmetry::mergeSymmetries(
 {
     // Vector of vectors of symmetries with certain full quotients:
     // { [0, 0.25], (0.25, 0.50], (0.50, 0.75], (0.75, 1.00] }.
-    std::vector<std::vector<ReflectionSymmetry>> mergedSymmetries(4);
+    std::vector<ReflectionSymmetry> mergedSymmetries;
 
     // Merging the found symmetries by Z axis and center point.
     for (ReflectionSymmetry& symmetry : reflectionSymmetries) {
-        // Selecting the index according to the full quotient.
-        int index = -1;
-        if (symmetry.getLineSegments()[0].getFullQuotient() <= 0.25) {
-            index = 0;
-        }
-        else if (symmetry.getLineSegments()[0].getFullQuotient() <= 0.5) {
-            index = 1;
-        }
-        else if (symmetry.getLineSegments()[0].getFullQuotient() <= 0.75) {
-            index = 2;
-        }
-        else {
-            index = 3;
-        }
-
         // Searching for a potential symmetry in the list, where X and
         // Y coordinates are the same as in the current symmetry, the
         // symmetry level is also the same.
         auto itr = std::find_if(
-            mergedSymmetries[index].begin(),
-            mergedSymmetries[index].end(),
-            [&symmetry,& tolerance](ReflectionSymmetry& curSymmetry) {
+            mergedSymmetries.begin(),
+            mergedSymmetries.end(),
+            [&symmetry, &tolerance](ReflectionSymmetry& curSymmetry) {
                 Plane p1 = symmetry.getPlane();
                 Plane p2 = curSymmetry.getPlane();
 
@@ -266,31 +167,29 @@ std::vector<ReflectionSymmetry> ReflectionSymmetry::mergeSymmetries(
         );
 
         // Adding the symmetry to the list if not exists.
-        if (itr == mergedSymmetries[index].end()) {
-            mergedSymmetries[index].push_back(symmetry);
+        if (itr == mergedSymmetries.end()) {
+            mergedSymmetries.push_back(symmetry);
         }
         // Updating the Symmetry object with new limits.
         else {
-           auto i = std::distance(mergedSymmetries[index].begin(), itr);
-            mergedSymmetries[index][i] &= symmetry;
+            const auto i = std::distance(mergedSymmetries.begin(), itr);
+            mergedSymmetries[i] &= symmetry;
         }
     }
 
-    std::vector<ReflectionSymmetry> flatSymmetries = mergedSymmetries[3];
-
     // Removing voxels that don't have pairs.
-    removeVoxelsWithoutPairs(flatSymmetries);
+    removeVoxelsWithoutPairs(mergedSymmetries);
 
     // Sorting reflection symmetries by line segment count in each symmetry.
     std::sort(
-        flatSymmetries.begin(),
-        flatSymmetries.end(),
+        mergedSymmetries.begin(),
+        mergedSymmetries.end(),
         [](ReflectionSymmetry& s1, ReflectionSymmetry& s2) {
             return s1.getLineSegmentCount() > s2.getLineSegmentCount();
         }
     );
 
-    return flatSymmetries;
+    return mergedSymmetries;
 }
 
 // Getting voxels for each reflection symmetry.
@@ -353,22 +252,25 @@ void ReflectionSymmetry::addInterestingVoxelsToSymmetry(std::vector<ReflectionSy
 
             for (int y = 0; y < voxelMesh.voxelY; y++) {
                 for (int x = 0; x < voxelMesh.voxelX; x++) {
-                    if (symmetry.plane.getD() == 12 && x == 6 && y == 1 && z == 0) {
-                        int xxx = 888;
+                    // Getting a voxel from the mesh according to indices.
+                    const Voxel& v = voxels[z][y][x];
+
+                    // If the voxel is not interesting, we move to the next one as soon as possible.
+                    if (!v.getInteresting()) {
+                        continue;
                     }
 
-                    // Getting a voxel from the mesh according to indices and checking whether it is already present in the list.
-                    const Voxel& v = voxels[z][y][x];
+                    // Checking whether the voxel is already present in the list.
                     bool exists = std::find(symmetry.voxels.begin(), symmetry.voxels.end(), v) != symmetry.voxels.end();
 
                     // If the voxel is (super) interesting and is not a part of the symmetry,
                     // it is checked if the voxel has its counterpart voxel on the other side
                     // of the symmetry plane.
-                    if ((v.getInteresting() || v.getSuperInteresting()) && !exists) {
+                    if (!exists) {
                         // Calculating voxel indices and the plane projection point.
-                        const float voxelX = (x + 0.5f) * voxelMesh.voxelSideSize + voxelMesh.minX;
-                        const float voxelY = (y + 0.5f) * voxelMesh.voxelSideSize + voxelMesh.minY;
-                        const float voxelZ = (z + 0.5f) * voxelMesh.voxelSideSize + voxelMesh.minZ;
+                        const auto voxelX = (x + 0.5f) * voxelMesh.voxelSideSize + voxelMesh.minX;
+                        const auto voxelY = (y + 0.5f) * voxelMesh.voxelSideSize + voxelMesh.minY;
+                        const auto voxelZ = (z + 0.5f) * voxelMesh.voxelSideSize + voxelMesh.minZ;
                         const Point<float> voxelPoint(voxelX, voxelY, voxelZ);
                         const Point<float> projection = symmetry.plane.calculateProjectionPoint(voxelPoint, voxelMesh);
 
@@ -478,6 +380,115 @@ void ReflectionSymmetry::removeSmallClusters(std::vector<ReflectionSymmetry>& re
         }
     }
 }
+
+// Processing possible points that lie on the voxel edge and the symmetry plane simultaneously.
+void ReflectionSymmetry::processPointsOnThePlaneAndVoxelEdge(std::vector<ReflectionSymmetry>& reflectionSymmetries) {
+    // Processing points for each reflection symmetry.
+    for (ReflectionSymmetry& symmetry : reflectionSymmetries) {
+        // Getting the points that lie on the plane and a voxel edge.
+        const std::vector<size_t>& pointsOnPlaneAndVoxelEdge = symmetry.plane.getPointsIndicesOnPlaneAndVoxelEdge(points, voxelMesh);
+
+        // Processing each point.
+        for (const size_t pointIndex : pointsOnPlaneAndVoxelEdge) {
+            const Point<float>& p = points[pointIndex];  // Retrieving the point.
+
+            // Getting voxel coordinates.
+            auto voxelX = p.getX() / voxelMesh.voxelSideSize;
+            auto voxelY = p.getY() / voxelMesh.voxelSideSize;
+            auto voxelZ = p.getZ() / voxelMesh.voxelSideSize;
+            if (voxelX == voxelMesh.voxelX) {
+                voxelX--;
+            }
+            if (voxelY == voxelMesh.voxelY) {
+                voxelY--;
+            }
+            if (voxelZ == voxelMesh.voxelZ) {
+                voxelX--;
+            }
+
+            if (Tolerance::isInTolerance(fmod(voxelX, 1.0), 0.0, 0.0001) &&
+                Tolerance::isInTolerance(fmod(voxelY, 1.0), 0.0, 0.0001) &&
+                symmetry.plane.getA() == 0
+            )
+            {
+                if (
+                    !LocalSymmetry::voxels[(int)voxelZ][(int)voxelY][(int)voxelX - 1].getInteresting() &&
+                    !LocalSymmetry::voxels[(int)voxelZ][(int)voxelY - 1][(int)voxelX - 1].getInteresting()
+                )
+                {
+                    symmetry.voxels.push_back(Voxel((int)voxelX - 1, (int)voxelY - 1, (int)voxelZ));
+                    symmetry.voxels.push_back(Voxel((int)voxelX - 1, (int)voxelY, (int)voxelZ));
+                }
+
+                if (
+                    !LocalSymmetry::voxels[(int)voxelZ][(int)voxelY][(int)voxelX].getInteresting() &&
+                    !LocalSymmetry::voxels[(int)voxelZ][(int)voxelY - 1][(int)voxelX].getInteresting()
+                )
+                {
+                    symmetry.voxels.push_back(Voxel((int)voxelX, (int)voxelY - 1, (int)voxelZ));
+                    symmetry.voxels.push_back(Voxel((int)voxelX, (int)voxelY, (int)voxelZ));
+                }
+            }
+            else if (Tolerance::isInTolerance(fmod(voxelX, 1.0), 0.0, 0.0001) &&
+                Tolerance::isInTolerance(fmod(voxelY, 1.0), 0.0, 0.0001) &&
+                symmetry.plane.getA() == 1
+            )
+            {
+                if (
+                    !LocalSymmetry::voxels[(int)voxelZ][(int)voxelY - 1][(int)voxelX - 1].getInteresting() &&
+                    !LocalSymmetry::voxels[(int)voxelZ][(int)voxelY - 1][(int)voxelX].getInteresting()
+                )
+                {
+                    symmetry.voxels.push_back(Voxel((int)voxelX - 1, (int)voxelY - 1, (int)voxelZ));
+                    symmetry.voxels.push_back(Voxel((int)voxelX, (int)voxelY - 1, (int)voxelZ));
+                }
+
+                if (
+                    !LocalSymmetry::voxels[(int)voxelZ][(int)voxelY][(int)voxelX - 1].getInteresting() &&
+                    !LocalSymmetry::voxels[(int)voxelZ][(int)voxelY][(int)voxelX].getInteresting()
+                )
+                {
+                    symmetry.voxels.push_back(Voxel((int)voxelX - 1, (int)voxelY, (int)voxelZ));
+                    symmetry.voxels.push_back(Voxel((int)voxelX, (int)voxelY, (int)voxelZ));
+                }
+            }
+            else if (Tolerance::isInTolerance(fmod(voxelX, 1.0), 0.0, 0.0001) &&
+                !LocalSymmetry::voxels[(int)voxelZ][(int)voxelY][(int)voxelX].getInteresting() &&
+                !LocalSymmetry::voxels[(int)voxelZ][(int)voxelY][(int)voxelX - 1].getInteresting()
+            )
+            {
+                symmetry.voxels.push_back(Voxel((int)voxelX - 1, (int)voxelY, (int)voxelZ));
+                symmetry.voxels.push_back(Voxel((int)voxelX, (int)voxelY, (int)voxelZ));
+            }
+            else if (Tolerance::isInTolerance(fmod(voxelY, 1.0), 0.0, 0.0001) &&
+                !LocalSymmetry::voxels[(int)voxelZ][(int)voxelY][(int)voxelX].getInteresting() &&
+                !LocalSymmetry::voxels[(int)voxelZ][(int)voxelY - 1][(int)voxelX].getInteresting()
+            )
+            {
+                symmetry.voxels.push_back(Voxel((int)voxelX - 1, (int)voxelY, (int)voxelZ));
+                symmetry.voxels.push_back(Voxel((int)voxelX, (int)voxelY, (int)voxelZ));
+            }
+        }
+    }
+}
+
+std::vector<ReflectionSymmetryResult<int>> ReflectionSymmetry::convertToResult(std::vector<ReflectionSymmetry>& reflectionSymmetries) {
+    std::vector<ReflectionSymmetryResult<int>> symmetries;
+
+    for (ReflectionSymmetry& symmetry : reflectionSymmetries) {
+        symmetries.push_back(
+            ReflectionSymmetryResult<int>{
+                SymResult<int>{static_cast<int>(symmetry.voxels.size())},
+                symmetry.plane,
+                symmetry.lineSegments,
+                symmetry.voxels
+            }
+        );
+    }
+
+    return symmetries;
+}
+
 
 
 
@@ -652,55 +663,42 @@ const std::vector<Voxel> ReflectionSymmetry::getVoxels() const {
 
 
 // CLASS METHODS
-// Getting line segments between all pairs of points (fully connected graph).
-std::vector<LineSegment> ReflectionSymmetry::calculateLineSegmentsBetweenPoints(
-    std::vector<Point<float>> points,
-    const double tolerance)
-{
-    std::vector<LineSegment> lineSegments;
-
-    // Calculation of every pair of points.
-    for (unsigned long long i = 0; i < points.size() - 1; i++) {
-        for (unsigned long long j = i + 1; j < points.size(); j++) {
-            // Cycles are not allowed in graph.
-            // Line segments between points with greater Z coordinate
-            // difference than tolerance are ignored.
-            if (i != j && Tolerance::isInTolerance(points[i].getZ(), points[j].getZ(), tolerance)) {
-                LineSegment ls(points[i], points[j]);
-                double percent = ReflectionSymmetry::calculateInterestingPercentInLineSegment(ls);
-                ls.setFullQuotient((float)percent);
-
-                lineSegments.push_back(ls);
-            }
-        }
-    }
-
-    // Sorting all line segments by length.
-    std::sort(
-        lineSegments.begin(),
-        lineSegments.end(),
-        [](LineSegment a, LineSegment b) { return a.getLength() < b.getLength(); }
-    );
-
-    return lineSegments;
-}
-
 // Calculating reflection symmetries.
 std::vector<ReflectionSymmetry> ReflectionSymmetry::calculateReflectionSymmetries(
-    std::vector<LineSegment> lineSegments,
+    std::vector<Point<float>>& points,
     const double tolerance,
     const int minimumClusterSize
 )
 {
     // Algorithm for finding reflection symmetries.
-    std::vector<ReflectionSymmetry> symmetries = findSimpleSymmetries(lineSegments, tolerance);  // Finding simple (trivial) symmetries according to line segments.
-    std::vector<ReflectionSymmetry> mergedSymmetries = mergeSymmetries(symmetries, tolerance);   // Merging the simple (trivial) symmetries with the given tolerance.
-    getVoxelsInSymmetries(mergedSymmetries);                                                     // Adding voxels to each symmetry.
-    addInterestingVoxelsToSymmetry(mergedSymmetries);                                            // Adding additional interesting voxels to each symmetry.
-    removeSmallClusters(mergedSymmetries, minimumClusterSize);                                   // Removing voxels in symmetries that are in too small clusters.
-    removeVoxelsWithoutPairs(mergedSymmetries);                                                  // Removing voxels that have no pairs across the symmetry plane.
+    std::vector<LineSegment> lineSegments = ReflectionSymmetry::calculateLineSegmentsBetweenPoints(points, tolerance);  // Calculation of line segments betweeen all pairs of points.
+    std::vector<ReflectionSymmetry> symmetries = findSimpleSymmetries(lineSegments, tolerance);                         // Finding simple (trivial) symmetries according to line segments.
+    std::vector<ReflectionSymmetry> mergedSymmetries = mergeSymmetries(symmetries, tolerance);                          // Merging the simple (trivial) symmetries with the given tolerance.
+    getVoxelsInSymmetries(mergedSymmetries);                                                                            // Adding voxels to each symmetry.
+    addInterestingVoxelsToSymmetry(mergedSymmetries);                                                                   // Adding additional interesting voxels to each symmetry.
+    removeSmallClusters(mergedSymmetries, minimumClusterSize);                                                          // Removing voxels in symmetries that are in too small clusters.
+    //processPointsOnThePlaneAndVoxelEdge(mergedSymmetries);                                                            // Processing points that lie on the plane and voxel edge.
 
     return mergedSymmetries;
+}
+
+// Calculating reflection symmetries.
+std::vector<ReflectionSymmetryResult<int>> ReflectionSymmetry::calculateReflectionSymmetriesToResult(
+    std::vector<Point<float>>& points,
+    const double tolerance,
+    const int minimumClusterSize
+)
+{
+    // Algorithm for finding reflection symmetries.
+    std::vector<LineSegment> lineSegments = ReflectionSymmetry::calculateLineSegmentsBetweenPoints(points, tolerance);  // Calculation of line segments betweeen all pairs of points.
+    std::vector<ReflectionSymmetry> symmetries = findSimpleSymmetries(lineSegments, tolerance);                         // Finding simple (trivial) symmetries according to line segments.
+    std::vector<ReflectionSymmetry> mergedSymmetries = mergeSymmetries(symmetries, tolerance);                          // Merging the simple (trivial) symmetries with the given tolerance.
+    getVoxelsInSymmetries(mergedSymmetries);                                                                            // Adding voxels to each symmetry.
+    addInterestingVoxelsToSymmetry(mergedSymmetries);                                                                   // Adding additional interesting voxels to each symmetry.
+    removeSmallClusters(mergedSymmetries, minimumClusterSize);                                                          // Removing voxels in symmetries that are in too small clusters.
+    //processPointsOnThePlaneAndVoxelEdge(mergedSymmetries);                                                            // Processing points that lie on the plane and voxel edge.
+
+    return convertToResult(mergedSymmetries);
 }
 
 // Finding partial symmetries from all reflection symmetries.
@@ -738,16 +736,16 @@ std::vector<ReflectionSymmetry> ReflectionSymmetry::findPartialSymmetries(const 
                     }
                     // If the symmetry plane goes through the edge of a voxel and is vertical,
                     // a reflection symmetry is also a partial symmetry.
-                    else if (voxel.getX() == xp - 1 && !Tolerance::isInTolerance(xp * voxelMesh.voxelSideSize, projection.getX(), 0.0001) && symmetry.plane.getA() == 1) {
-                        partialSymmetries.push_back(ReflectionSymmetry(symmetry.plane, voxels));
-                        break;
-                    }
-                    // If the symmetry plane goes through the edge of a voxel and is horizontal,
-                    // a reflection symmetry is also a partial symmetry.
-                    else if (voxel.getX() == yp - 1 && !Tolerance::isInTolerance(yp * voxelMesh.voxelSideSize, projection.getY(), 0.0001) && symmetry.plane.getA() == 0) {
-                        partialSymmetries.push_back(ReflectionSymmetry(symmetry.plane, voxels));
-                        break;
-                    }
+//                    else if (voxel.getX() == xp - 1 && !Tolerance::isInTolerance(xp * voxelMesh.voxelSideSize, projection.getX(), 0.0001) && symmetry.plane.getA() == 1) {
+//                        partialSymmetries.push_back(ReflectionSymmetry(symmetry.plane, voxels));
+//                        break;
+//                    }
+//                    // If the symmetry plane goes through the edge of a voxel and is horizontal,
+//                    // a reflection symmetry is also a partial symmetry.
+//                    else if (voxel.getX() == yp - 1 && !Tolerance::isInTolerance(yp * voxelMesh.voxelSideSize, projection.getY(), 0.0001) && symmetry.plane.getA() == 0) {
+//                        partialSymmetries.push_back(ReflectionSymmetry(symmetry.plane, voxels));
+//                        break;
+//                    }
                 }
             }
         }
@@ -779,44 +777,80 @@ std::vector<PositionFromPlane> ReflectionSymmetry::calculatePositionsFromPlane(c
         const int voxelXCoordinate = (int)(voxelX * voxelMesh.voxelSideSize + voxelMesh.minX);
         const int voxelYCoordinate = (int)(voxelY * voxelMesh.voxelSideSize + voxelMesh.minY);
         const int voxelZCoordinate = (int)(voxelZ * voxelMesh.voxelSideSize + voxelMesh.minZ);
+        auto& voxelVector = LocalSymmetry::getVoxels();
+
+
+        if (!voxelVector[voxelZ][voxelY][voxelX].getSuperInteresting() && !voxelVector[voxelZ][voxelY][voxelX].getInteresting()) {
+            positions[i] = PositionFromPlane::undefined;
+            continue;
+        }
 
         // If the current point lies outside of an interesting voxel, its position is set to undefined.
         if (std::find(voxels.begin(), voxels.end(), Voxel(voxelX, voxelY, voxelZ)) == voxels.end()) {
-             positions[i] = PositionFromPlane::undefined;
-             continue;
-        }
-
-        if (plane != nullptr) {
-            // Calculating the center coordinates of the voxel where the point is located.
-            const float voxelXCenter = (voxelX + 0.5f) * voxelMesh.voxelSideSize + voxelMesh.minX;
-            const float voxelYCenter = (voxelY + 0.5f) * voxelMesh.voxelSideSize + voxelMesh.minY;
-            const float voxelZCenter = (voxelZ + 0.5f) * voxelMesh.voxelSideSize + voxelMesh.minZ;
-            const Point<float> voxelCenter(voxelXCenter, voxelYCenter, voxelZCenter);
-
-            // Calculating the projection point to the symmetry plane.
-            const Point<float> projection = plane->calculateProjectionPoint(voxelCenter, voxelMesh);
-            const int voxelProjectionX = (int)floor((projection.getX() - voxelMesh.minX) / voxelMesh.voxelSideSize);
-            const int voxelProjectionY = (int)floor((projection.getY() - voxelMesh.minY) / voxelMesh.voxelSideSize);
-            const int voxelProjectionZ = (int)floor((projection.getZ() - voxelMesh.minZ) / voxelMesh.voxelSideSize);
-
-            // If the projection point lies within the same voxel as the point, the position is set to center.
-            // Note: voxels that are only touched by the symmetry plane on one edge are NOT center voxels.
-            if (voxelX == voxelProjectionX && !Tolerance::isInTolerance(voxelXCoordinate, projection.getX(), 0.001) &&
-                voxelY == voxelProjectionY && !Tolerance::isInTolerance(voxelYCoordinate, projection.getY(), 0.001) &&
-                voxelZ == voxelProjectionZ && !Tolerance::isInTolerance(voxelZCoordinate, projection.getZ(), 0.001))
+            if (voxelX == 0 || voxelY == 0 ||
+                (plane->getA() == 1 &&
+                (!Tolerance::isInTolerance(fmod(point.getY() / voxelMesh.voxelSideSize, 1.0), 0.0, 0.0001) ||
+                std::find(voxels.begin(), voxels.end(), Voxel(voxelX - 1, voxelY - 1, voxelZ)) == voxels.end() ||
+                std::find(voxels.begin(), voxels.end(), Voxel(voxelX, voxelY - 1, voxelZ)) == voxels.end()))
+            )
             {
-                positions[i] = PositionFromPlane::center;
+                positions[i] = PositionFromPlane::undefined;
                 continue;
             }
+            else if (voxelX == 0 || voxelY == 0 ||
+                (plane->getA() == 0 &&
+                (!Tolerance::isInTolerance(fmod(point.getX() / voxelMesh.voxelSideSize, 1.0), 0.0, 0.0001) ||
+                std::find(voxels.begin(), voxels.end(), Voxel(voxelX - 1, voxelY - 1, voxelZ)) == voxels.end() ||
+                std::find(voxels.begin(), voxels.end(), Voxel(voxelX - 1, voxelY, voxelZ)) == voxels.end()))
+            )
+            {
+                positions[i] = PositionFromPlane::undefined;
+                continue;
+            }
+            else if (plane->getA() != 0 && plane->getA() != 1) {
+                positions[i] = PositionFromPlane::undefined;
+                continue;
+            }
+        }
 
-            // If the point is on the left side of the plane, left
-            // position is added, right otherwise.
-            if (plane->isPointOnTheLeftSide(point, voxelMesh)) {
-                positions[i] = PositionFromPlane::left;
-            }
-            else {
-                positions[i] = PositionFromPlane::right;
-            }
+        // If the point and the projection point have the same coordinates, the
+        // plane goes through the point. Therefore, its position is set to center.
+        const Point<float> pointProjection = plane->calculateProjectionPoint(point, voxelMesh);
+        if (point == pointProjection) {
+            positions[i] = PositionFromPlane::center;
+            continue;
+        }
+
+        // Calculating the center coordinates of the voxel where the point is located.
+        const auto voxelXCenter = (voxelX + 0.5f) * voxelMesh.voxelSideSize + voxelMesh.minX;
+        const auto voxelYCenter = (voxelY + 0.5f) * voxelMesh.voxelSideSize + voxelMesh.minY;
+        const auto voxelZCenter = (voxelZ + 0.5f) * voxelMesh.voxelSideSize + voxelMesh.minZ;
+        const Point<float> voxelCenter(voxelXCenter, voxelYCenter, voxelZCenter);
+
+        // Calculating the projection point to the symmetry plane.
+        const Point<float> projection = plane->calculateProjectionPoint(voxelCenter, voxelMesh);
+        const int voxelProjectionX = (int)floor((projection.getX() - voxelMesh.minX) / voxelMesh.voxelSideSize);
+        const int voxelProjectionY = (int)floor((projection.getY() - voxelMesh.minY) / voxelMesh.voxelSideSize);
+        const int voxelProjectionZ = (int)floor((projection.getZ() - voxelMesh.minZ) / voxelMesh.voxelSideSize);
+
+        // If the projection point lies within the same voxel as the point, the position is set to center.
+        // Note: voxels that are only touched by the symmetry plane on one edge are NOT center voxels.
+        if (voxelX == voxelProjectionX && !Tolerance::isInTolerance(voxelXCoordinate, projection.getX(), 0.001) &&
+            voxelY == voxelProjectionY && !Tolerance::isInTolerance(voxelYCoordinate, projection.getY(), 0.001) &&
+            voxelZ == voxelProjectionZ && !Tolerance::isInTolerance(voxelZCoordinate, projection.getZ(), 0.001)
+        )
+        {
+            positions[i] = PositionFromPlane::center;
+            continue;
+        }
+
+        // If the point is on the left side of the plane, left
+        // position is added, right otherwise.
+        if (plane->isPointOnTheLeftSide(point, voxelMesh)) {
+            positions[i] = PositionFromPlane::left;
+        }
+        else {
+            positions[i] = PositionFromPlane::right;
         }
     }
 

@@ -1,7 +1,9 @@
 #include <pch.h>
+#include <cmath>
 #include <iomanip>
 
 #include "plane.h"
+#include "tolerance.h"
 
 using namespace Symmetry;
 
@@ -14,13 +16,13 @@ Plane::Plane() {
 }
 
 // Default constructor with two vectors and a point.
-Plane::Plane(LAS::Data::Vector3d p, LAS::Data::Vector3d v1, LAS::Data::Vector3d v2) {
+Plane::Plane(Vector3d p, Vector3d v1, Vector3d v2) {
     // Calculating a, b, c and d coefficients.
     // According to Linear Algebra (TM), (a, b, c) represents the plane normal vector.
-    LAS::Data::Vector3d normal = LAS::Data::crossProduct(v1, v2);
-    a = normal.x;
-    b = normal.y;
-    c = normal.z;
+    Vector3d normal = Vector3d::crossProduct(v1, v2);
+    a = normal.getX();
+    b = normal.getY();
+    c = normal.getZ();
     d = p.dot(normal);
 
     // To make our lives easier, A coefficient should always be >=0.
@@ -73,20 +75,20 @@ bool Plane::operator == (Plane p) const {
 
 // CLASS METHODS
 // Calculating the starting point of the plane in a symmetry.
-std::tuple<LAS::Data::Vector3d, double, double, double> Plane::calculateStartPoint(const Plane& p, const VoxelMesh& vm) {
+std::tuple<Vector3d, double, double, double> Plane::calculateStartPoint(const Plane& p, const VoxelMesh& vm) {
     // Calculating the intersections betweeen the symmetry plane and the bounding box.
-    Point<float>* pTopBbox = p.calculateTopBoundingBoxIntersection(vm);
-    Point<float>* pBottomBbox = p.calculateBottomBoundingBoxIntersection(vm);
-    Point<float>* pLeftBbox = p.calculateLeftBoundingBoxIntersection(vm);
-    Point<float>* pRightBbox = p.calculateRightBoundingBoxIntersection(vm);
+    Point<double>* pTopBbox = p.calculateTopBoundingBoxIntersection(vm);
+    Point<double>* pBottomBbox = p.calculateBottomBoundingBoxIntersection(vm);
+    Point<double>* pLeftBbox = p.calculateLeftBoundingBoxIntersection(vm);
+    Point<double>* pRightBbox = p.calculateRightBoundingBoxIntersection(vm);
 
     // Setting the position of a plane.
-    LAS::Data::Vector3d position;
+    Vector3d position;
     const double RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE = 0.5;
     double distance = 0.0;
     double distanceX = 0.0;
     double distanceY = 0.0;
-    auto planeY = p.calculateParallelVector().y;
+    auto planeY = p.calculateParallelVector().getY();
 
     // Positioning the plane according to all the posibilities (8).
     if (planeY < 0) {
@@ -98,9 +100,9 @@ std::tuple<LAS::Data::Vector3d, double, double, double> Plane::calculateStartPoi
             distance = (2 * RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE + 1) * sqrt(pow(distanceX, 2) + pow(distanceY, 2));
 
             // Positioning the plane.
-            position.x = pLeftBbox->getX() - RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE * distanceX;
-            position.y = pLeftBbox->getY() + RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE * distanceY;
-            position.z = vm.minZ - (vm.deltaZ / 2);
+            position.setX(pLeftBbox->getX() - RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE * distanceX);
+            position.setY(pLeftBbox->getY() + RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE * distanceY);
+            position.setZ(vm.minZ - (vm.deltaZ / 2));
         }
         // Option 2: top and bottom bounding box intersections.
         else if (pTopBbox != nullptr && pBottomBbox != nullptr) {
@@ -110,9 +112,9 @@ std::tuple<LAS::Data::Vector3d, double, double, double> Plane::calculateStartPoi
             distance = (2 * RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE + 1) * sqrt(pow(distanceX, 2) + pow(distanceY, 2));
 
             // Positioning the plane.
-            position.x = pTopBbox->getX() - RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE * distanceX;
-            position.y = pTopBbox->getY() + RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE * distanceY;
-            position.z = vm.minZ - (vm.deltaZ / 2);
+            position.setX(pTopBbox->getX() - RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE * distanceX);
+            position.setY(pTopBbox->getY() + RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE * distanceY);
+            position.setZ(vm.minZ - (vm.deltaZ / 2));
         }
         // Option 3: top and right bounding box intersections.
         else if (pTopBbox != nullptr && pRightBbox != nullptr) {
@@ -122,9 +124,9 @@ std::tuple<LAS::Data::Vector3d, double, double, double> Plane::calculateStartPoi
             distance = (2 * RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE + 1) * sqrt(pow(distanceX, 2) + pow(distanceY, 2));
 
             // Positioning the plane.
-            position.x = pTopBbox->getX() - RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE * distanceX;
-            position.y = pTopBbox->getY() + RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE * distanceY;
-            position.z = vm.minZ - (vm.deltaZ / 2);
+            position.setX(pTopBbox->getX() - RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE * distanceX);
+            position.setY(pTopBbox->getY() + RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE * distanceY);
+            position.setZ(vm.minZ - (vm.deltaZ / 2));
         }
         // Option 4: top and right bounding box intersections.
         else if (pLeftBbox != nullptr && pRightBbox != nullptr) {
@@ -134,9 +136,9 @@ std::tuple<LAS::Data::Vector3d, double, double, double> Plane::calculateStartPoi
             distance = (2 * RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE + 1) * sqrt(pow(distanceX, 2) + pow(distanceY, 2));
 
             // Positioning the plane.
-            position.x = pLeftBbox->getX() - RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE * distanceX;
-            position.y = pLeftBbox->getY() + RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE * distanceY;
-            position.z = vm.minZ - (vm.deltaZ / 2);
+            position.setX(pLeftBbox->getX() - RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE * distanceX);
+            position.setY(pLeftBbox->getY() + RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE * distanceY);
+            position.setZ(vm.minZ - (vm.deltaZ / 2));
         }
     }
     else {
@@ -148,9 +150,9 @@ std::tuple<LAS::Data::Vector3d, double, double, double> Plane::calculateStartPoi
             distance = (2 * RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE + 1) * sqrt(pow(distanceX, 2) + pow(distanceY, 2));
 
             // Positioning the plane.
-            position.x = pRightBbox->getX() + RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE * distanceX - 2 * distanceX;
-            position.y = pRightBbox->getY() - RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE * distanceY - distanceY;
-            position.z = vm.minZ - (vm.deltaZ / 2);
+            position.setX(pRightBbox->getX() + RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE * distanceX - 2 * distanceX);
+            position.setY(pRightBbox->getY() - RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE * distanceY - distanceY);
+            position.setZ(vm.minZ - (vm.deltaZ / 2));
         }
         // Option 6: bottom and top bounding box intersections.
         else if (pBottomBbox != nullptr && pTopBbox != nullptr) {
@@ -160,9 +162,9 @@ std::tuple<LAS::Data::Vector3d, double, double, double> Plane::calculateStartPoi
             distance = (2 * RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE + 1) * sqrt(pow(distanceX, 2) + pow(distanceY, 2));
 
             // Positioning the plane.
-            position.x = pBottomBbox->getX() + RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE * distanceX - distanceX;
-            position.y = pBottomBbox->getY() - RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE * distanceY;
-            position.z = vm.minZ - (vm.deltaZ / 2);
+            position.setX(pBottomBbox->getX() + RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE * distanceX - distanceX);
+            position.setY(pBottomBbox->getY() - RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE * distanceY);
+            position.setZ(vm.minZ - (vm.deltaZ / 2));
         }
         // Option 7: left and top bounding box intersections.
         else if (pLeftBbox != nullptr && pTopBbox != nullptr) {
@@ -172,9 +174,9 @@ std::tuple<LAS::Data::Vector3d, double, double, double> Plane::calculateStartPoi
             distance = (2 * RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE + 1) * sqrt(pow(distanceX, 2) + pow(distanceY, 2));
 
             // Positioning the plane.
-            position.x = pLeftBbox->getX() + RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE * distanceX - distanceX;
-            position.y = pLeftBbox->getY() - RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE * distanceY;
-            position.z = vm.minZ - (vm.deltaZ / 2);
+            position.setX(pLeftBbox->getX() + RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE * distanceX - distanceX);
+            position.setY(pLeftBbox->getY() - RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE * distanceY);
+            position.setZ(vm.minZ - (vm.deltaZ / 2));
         }
         // Option 8: left and right bounding box intersections.
         else if (pLeftBbox != nullptr && pRightBbox != nullptr) {
@@ -184,9 +186,9 @@ std::tuple<LAS::Data::Vector3d, double, double, double> Plane::calculateStartPoi
             distance = (2 * RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE + 1) * sqrt(pow(distanceX, 2) + pow(distanceY, 2));
 
             // Positioning the plane.
-            position.x = pLeftBbox->getX() + RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE * distanceX - distanceX;
-            position.y = pLeftBbox->getY() - RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE * distanceY;
-            position.z = vm.minZ - (vm.deltaZ / 2);
+            position.setX(pLeftBbox->getX() + RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE * distanceX - distanceX);
+            position.setY(pLeftBbox->getY() - RELATIVE_LENGTH_OUTSIDE_BBOX_EACH_SIDE * distanceY);
+            position.setZ(vm.minZ - (vm.deltaZ / 2));
         }
     }
 
@@ -239,120 +241,120 @@ std::string Plane::toString() const {
 }
 
 // Calculating a plane normal vector;
-LAS::Data::Vector3d Plane::calculateNormalVector() const {
-    return LAS::Data::Vector3d(a, b, c);
+Vector3d Plane::calculateNormalVector() const {
+    return Vector3d(a, b, c);
 }
 
 // Calculating a vector, parallel to a plane.
-LAS::Data::Vector3d Plane::calculateParallelVector() const {
-    LAS::Data::Vector3d v = LAS::Data::Vector3d(-b, a, 0);  // Calculating a parallel vector.
+Vector3d Plane::calculateParallelVector() const {
+    Vector3d v = Vector3d(-b, a, 0);  // Calculating a parallel vector.
 
     // To make our lives easier again, the X component
     // of the vector should be >=0. Always.
-    if (v.x < 0) {
-        v.x = -v.x;
-        v.y = -v.y;
+    if (v.getX() < 0) {
+        v.setX(-v.getX());
+        v.setY(-v.getY());
     }
 
     return v;
 }
 
 // Calculating a vector that goes along the Z axis.
-LAS::Data::Vector3d Plane::calculateZVector() const {
-    return LAS::Data::Vector3d(0, 0, 1);
+Vector3d Plane::calculateZVector() const {
+    return Vector3d(0, 0, 1);
 }
 
 // Calculating a point on the plane with Y==max if possible.
-Point<float>* Plane::calculateTopBoundingBoxIntersection(const VoxelMesh& vm) const {
-    LAS::Data::Vector3d v = calculateParallelVector();  // Calculating a parallel vector.
+Point<double>* Plane::calculateTopBoundingBoxIntersection(const VoxelMesh& vm) const {
+    Vector3d v = calculateParallelVector();  // Calculating a parallel vector.
 
     // If the plane is constant along the Y axis, it
     // will never reach the top side of the bounding box.
-    if (v.y == 0 && d != 0) {
+    if (v.getY() == 0 && d != 0) {
         return nullptr;
     }
 
     // Calculating the coordinates of the intersection point.
-    auto x = (float)((d - b * vm.maxY) / a);
-    auto y = vm.maxY;
-    auto z = 0.f;
+    double x = (d - b * vm.maxY) / a;
+    double y = vm.maxY;
+    double z = 0;
 
     // If X lies outside the bounding box, there is no intersection.
     if (x < vm.minX || x > vm.maxX) {
         return nullptr;
     }
 
-    return new Point<float>(x, y, z);
+    return new Point<double>(x, y, z);
 }
 
 // Calculating a point on the plane with Y==min if possible.
-Point<float>* Plane::calculateBottomBoundingBoxIntersection(const VoxelMesh& vm) const {
-    LAS::Data::Vector3d v = calculateParallelVector();  // Calculating a parallel vector.
+Point<double>* Plane::calculateBottomBoundingBoxIntersection(const VoxelMesh& vm) const {
+    Vector3d v = calculateParallelVector();  // Calculating a parallel vector.
 
     // If the plane is constant along the Y axis, it
     // will never reach the bottom side of the bounding box.
-    if (v.y == 0 && d != 0) {
+    if (v.getY() == 0 && d != 0) {
         return nullptr;
     }
 
     // Calculating the coordinates of the intersection point.
-    auto x = (float)((d - b * vm.minY) / a);
-    auto y = vm.minY;
-    auto z = 0.f;
+    double x = (d - b * vm.minY) / a;
+    double y = vm.minY;
+    double z = 0;
 
     // If X lies outside the bounding box, there is no intersection.
     if (x < vm.minX || x > vm.maxX) {
         return nullptr;
     }
 
-    return new Point<float>(x, y, z);
+    return new Point<double>(x, y, z);
 }
 
 // Calculating a point on the plane with X==min if possible.
-Point<float>* Plane::calculateLeftBoundingBoxIntersection(const VoxelMesh& vm) const {
-    LAS::Data::Vector3d v = calculateParallelVector();  // Calculating a parallel vector.
+Point<double>* Plane::calculateLeftBoundingBoxIntersection(const VoxelMesh& vm) const {
+    Vector3d v = calculateParallelVector();  // Calculating a parallel vector.
 
     // If the plane is constant along the X axis, it
     // will never reach the left side of the bounding box.
-    if (v.x == 0 && d != 0) {
+    if (v.getX() == 0 && d != 0) {
         return nullptr;
     }
 
     // Calculating the coordinates of the intersection point.
-    auto x = vm.minX;
-    auto y = (float)((d - a * vm.minX) / b);
-    auto z = 0.f;
+    double x = vm.minX;
+    double y = (d - a * vm.minX) / b;
+    double z = 0;
 
     // If Y lies outside the bounding box, there is no intersection.
     if (y < vm.minY || y > vm.maxY) {
         return nullptr;
     }
 
-    return new Point<float>(x, y, z);
+    return new Point<double>(x, y, z);
 }
 
 // Calculating a point on the plane with X==max if possible.
-Point<float>* Plane::calculateRightBoundingBoxIntersection(const VoxelMesh& vm) const {
+Point<double>* Plane::calculateRightBoundingBoxIntersection(const VoxelMesh& vm) const {
     // The Y component of the point is calculated as d/b.
-    LAS::Data::Vector3d v = calculateParallelVector();  // Calculating a parallel vector.
+    Vector3d v = calculateParallelVector();  // Calculating a parallel vector.
 
     // If the plane is constant along the X axis, it
     // will never reach the left side of the bounding box.
-    if (v.x == 0 && d != 0) {
+    if (v.getX() == 0 && d != 0) {
         return nullptr;
     }
 
     // Calculating the coordinates of the intersection point.
-    auto x = vm.maxX;
-    auto y = (float)((d - a * vm.maxX) / b);
-    auto z = 0.f;
+    double x = vm.maxX;
+    double y = (d - a * vm.maxX) / b;
+    double z = 0;
 
     // If Y lies outside the bounding box, there is no intersection.
     if (y < vm.minY || y > vm.maxY) {
         return nullptr;
     }
 
-    return new Point<float>(x, y, z);
+    return new Point<double>(x, y, z);
 }
 
 // Returning true if a point is on the left side of the plane.
@@ -360,31 +362,32 @@ bool Plane::isPointOnTheLeftSide(const Point<float>& p, const VoxelMesh& vm) con
     // Calculating top, bottom and leftbounding box intersections.
     // Since all planes intersect with the bounding box at least
     // twice, 3 intersection points are enough for sure.
-    Point<float>* pTop = calculateTopBoundingBoxIntersection(vm);        // Calculating top intersection.
-    Point<float>* pBottom = calculateBottomBoundingBoxIntersection(vm);  // Calculating bottom intersection.
-    Point<float>* pLeft = calculateLeftBoundingBoxIntersection(vm);      // Calculating left intersection.
+    Point<double>* pTop = calculateTopBoundingBoxIntersection(vm);        // Calculating top intersection.
+    Point<double>* pBottom = calculateBottomBoundingBoxIntersection(vm);  // Calculating bottom intersection.
+    Point<double>* pLeft = calculateLeftBoundingBoxIntersection(vm);      // Calculating left intersection.
     double cross = 0.0;  // Cross product between two vectors.
 
     // Calculation of the side with a help of the top intersection point.
+    Vector3d parallel = calculateParallelVector();
     if (pTop != nullptr) {
-        Point<float> p1 =* pTop - calculateParallelVector();
-        LAS::Data::Vector2d v1 = (LAS::Data::Vector2d(calculateParallelVector().x, calculateParallelVector().y)).normalize();
-        LAS::Data::Vector2d v2 = (LAS::Data::Vector2d(p.getX() - p1.getX(), p.getY() - p1.getY())).normalize();
-        cross = v1.x * v2.y - v2.x * v1.y;
+        Point<double> p1 = *pTop - parallel;
+        Vector2d v1 = (Vector2d(calculateParallelVector().getX(), calculateParallelVector().getY(), 0)).normalize();
+        Vector2d v2 = (Vector2d(p.getX() - p1.getX(), p.getY() - p1.getY(), 0)).normalize();
+        cross = v1.getX() * v2.getY() - v2.getX() * v1.getY();
     }
     // Calculation of the side with a help of the bottom intersection point.
     else if (pBottom != nullptr) {
-        Point<float> p1 =* pBottom - calculateParallelVector();
-        LAS::Data::Vector2d v1 = (LAS::Data::Vector2d(calculateParallelVector().x, calculateParallelVector().y)).normalize();
-        LAS::Data::Vector2d v2 = (LAS::Data::Vector2d(p.getX() - p1.getX(), p.getY() - p1.getY())).normalize();
-        cross = v1.x * v2.y - v2.x * v1.y;
+        Point<double> p1 = *pBottom - parallel;
+        Vector2d v1 = (Vector2d(calculateParallelVector().getX(), calculateParallelVector().getY(), 0)).normalize();
+        Vector2d v2 = (Vector2d(p.getX() - p1.getX(), p.getY() - p1.getY(), 0)).normalize();
+        cross = v1.getX() * v2.getY() - v2.getX() * v1.getY();
     }
     // Calculation of the side with a help of the left intersection point.
     else {
-        Point<float> p1 =* pLeft - calculateParallelVector();
-        LAS::Data::Vector2d v1 = (LAS::Data::Vector2d(calculateParallelVector().x, calculateParallelVector().y)).normalize();
-        LAS::Data::Vector2d v2 = (LAS::Data::Vector2d(p.getX() - p1.getX(), p.getY() - p1.getY())).normalize();
-        cross = v1.x * v2.y - v2.x * v1.y;
+        Point<double> p1 = *pLeft - parallel;
+        Vector2d v1 = (Vector2d(calculateParallelVector().getX(), calculateParallelVector().getY(), 0)).normalize();
+        Vector2d v2 = (Vector2d(p.getX() - p1.getX(), p.getY() - p1.getY(), 0)).normalize();
+        cross = v1.getX() * v2.getY() - v2.getX() * v1.getY();
     }
 
     // Deleting points.
@@ -399,66 +402,66 @@ bool Plane::isPointOnTheLeftSide(const Point<float>& p, const VoxelMesh& vm) con
 // Calculating the projection point to the plane.
 Point<float> Plane::calculateProjectionPoint(const Point<float>& p, const VoxelMesh& vm) const {
     // Calculating top, bottom and leftbounding box intersections.
-    Point<float>* p1 = calculateTopBoundingBoxIntersection(vm);     // Calculating the top intersection.
-    Point<float>* p2 = calculateBottomBoundingBoxIntersection(vm);  // Calculating the bottom intersection.
-    Point<float>* p3 = calculateLeftBoundingBoxIntersection(vm);    // Calculating the left intersection.
-    Point<float>* p4 = calculateRightBoundingBoxIntersection(vm);   // Calculating the right intersection.
+    Point<double>* p1 = calculateTopBoundingBoxIntersection(vm);     // Calculating the top intersection.
+    Point<double>* p2 = calculateBottomBoundingBoxIntersection(vm);  // Calculating the bottom intersection.
+    Point<double>* p3 = calculateLeftBoundingBoxIntersection(vm);    // Calculating the left intersection.
+    Point<double>* p4 = calculateRightBoundingBoxIntersection(vm);   // Calculating the right intersection.
     Point<float> projection;
 
     // Calculation of the projection point with a help of the top intersection point.
     if (p1 != nullptr) {
         // Base vector calculation.
-        LAS::Data::Vector3d v1(calculateParallelVector());
-        LAS::Data::Vector3d v2(p1->getX() - p.getX() + vm.minX, p1->getY() - p.getY() + vm.minY, 0);
-        LAS::Data::Vector3d vn = LAS::Data::Vector3d(p1->getX() - p.getX() + vm.minX, p1->getY() - p.getY() + vm.minY, 0).normalize();
-        double length = v2.lenght();
+        Vector3d v1(calculateParallelVector());
+        Vector3d v2(p1->getX() - p.getX() + vm.minX, p1->getY() - p.getY() + vm.minY, 0);
+        Vector3d vn = Vector3d(p1->getX() - p.getX() + vm.minX, p1->getY() - p.getY() + vm.minY, 0).normalize();
+        double length = v2.length();
 
         // Projection calculation.
         double dot = -v1.dot(vn);
-        projection.setX((float)(p1->getX() + dot * v1.x * length + vm.minX));
-        projection.setY((float)(p1->getY() + dot * v1.y * length + vm.minX));
+        projection.setX((float)(p1->getX() + dot * v1.getX() * length + vm.minX));
+        projection.setY((float)(p1->getY() + dot * v1.getY() * length + vm.minX));
         projection.setZ(p.getZ());
     }
     // Calculation of the projection point with a help of the bottom intersection point.
     else if (p2 != nullptr) {
         // Base vector calculation.
-        LAS::Data::Vector3d v1(calculateParallelVector());
-        LAS::Data::Vector3d v2(p2->getX() - p.getX() + vm.minX, p2->getY() - p.getY() + vm.minY, 0);
-        LAS::Data::Vector3d vn = LAS::Data::Vector3d(p2->getX() - p.getX() + vm.minX, p2->getY() - p.getY() + vm.minY, 0).normalize();
-        double length = v2.lenght();
+        Vector3d v1(calculateParallelVector());
+        Vector3d v2(p2->getX() - p.getX() + vm.minX, p2->getY() - p.getY() + vm.minY, 0);
+        Vector3d vn = Vector3d(p2->getX() - p.getX() + vm.minX, p2->getY() - p.getY() + vm.minY, 0).normalize();
+        double length = v2.length();
 
         // Projection calculation.
         double dot = -v1.dot(vn);
-        projection.setX((float)(p2->getX() + dot * v1.x * length + vm.minX));
-        projection.setY((float)(p2->getY() + dot * v1.y * length + vm.minY));
+        projection.setX((float)(p2->getX() + dot * v1.getX() * length + vm.minX));
+        projection.setY((float)(p2->getY() + dot * v1.getY() * length + vm.minY));
         projection.setZ(p.getZ());
     }
     // Calculation of the projection point with a help of the left intersection point.
     else if (p3 != nullptr) {
         // Base vector calculation.
-        LAS::Data::Vector3d v1(calculateParallelVector());
-        LAS::Data::Vector3d v2(p3->getX() - p.getX() + vm.minX, p3->getY() - p.getY() + vm.minY, 0);
-        LAS::Data::Vector3d vn = LAS::Data::Vector3d(p3->getX() - p.getX() + vm.minX, p3->getY() - p.getY() + vm.minY, 0).normalize();
-        double length = v2.lenght();
+        Vector3d v1(calculateParallelVector());
+        Vector3d v2(p3->getX() - p.getX() + vm.minX, p3->getY() - p.getY() + vm.minY, 0);
+        Vector3d vn = Vector3d(p3->getX() - p.getX() + vm.minX, p3->getY() - p.getY() + vm.minY, 0).normalize();
+        double length = v2.length();
 
         // Projection calculation.
         double dot = std::abs(v1.dot(vn));
-        projection.setX((float)(p3->getX() + dot * v1.x * length + vm.minX));
-        projection.setY((float)(p3->getY() + dot * v1.y * length + vm.minY));
+        projection.setX((float)(p3->getX() + dot * v1.getX() * length + vm.minX));
+        projection.setY((float)(p3->getY() + dot * v1.getY() * length + vm.minY));
         projection.setZ(p.getZ());
     }
     // Calculation of the projection point with a help of the right intersection point.
     else if (p4 != nullptr) {
         // Base vector calculation.
-        LAS::Data::Vector3d v1(calculateParallelVector());
-        LAS::Data::Vector3d v2(p4->getX() - p.getX() + vm.minX, p4->getY() - p.getY() + vm.minY, 0);
-        LAS::Data::Vector3d vn = LAS::Data::Vector3d(p4->getX() - p.getX() + vm.minX, p4->getY() - p.getY() + vm.minY, 0).normalize();
-        double length = v2.lenght();
+        Vector3d v1(calculateParallelVector());
+        Vector3d v2(p4->getX() - p.getX() + vm.minX, p4->getY() - p.getY() + vm.minY, 0);
+        Vector3d vn = Vector3d(p4->getX() - p.getX() + vm.minX, p4->getY() - p.getY() + vm.minY, 0).normalize();
+        double length = v2.length();
 
         // Projection calculation.
         double dot = std::abs(v1.dot(vn));
-        projection.setX((float)(p4->getX() - dot * v1.x * length + vm.minX));
-        projection.setY((float)(p4->getY() - dot * v1.y * length + vm.minY));
+        projection.setX((float)(p4->getX() - dot * v1.getX() * length + vm.minX));
+        projection.setY((float)(p4->getY() - dot * v1.getY() * length + vm.minY));
         projection.setZ(p.getZ());
     }
 
@@ -483,4 +486,30 @@ double Plane::calculateXCoordinateAtY(const double y) const {
     // X can be calculated pretty easily from the plane equation (ax+by+cz=d).
     double x = (d - b * y) / a;
     return x;
+}
+
+// Getting the indices of the points that lie on the symmetry plane and voxel edge simultaneously.
+std::vector<size_t> Plane::getPointsIndicesOnPlaneAndVoxelEdge(const std::vector<Point<float>>& points, const VoxelMesh& vm) const {
+    std::vector<size_t> indices;
+
+    for (size_t i = 0; i < points.size(); i++) {
+        // If the projection point and the point do not have
+        // the same coordinates, the point does not lie on the plane.
+        const Point<float> projection = calculateProjectionPoint(points[i], vm);
+        if (points[i] != projection) {
+            continue;
+        }
+
+        // If the quotient between the point X coordinate
+        if (!Tolerance::isInTolerance(fmod(points[i].getX() / vm.voxelSideSize, 1), 0.0, 0.0001) &&
+            !Tolerance::isInTolerance(fmod(points[i].getY() / vm.voxelSideSize, 1), 0.0, 0.0001)
+        )
+        {
+            continue;
+        }
+
+        indices.push_back(i);
+    }
+
+    return indices;
 }

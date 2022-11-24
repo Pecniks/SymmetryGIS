@@ -4,6 +4,7 @@
 
 #include "camera/cameraparameters.h"
 #include "mainwindow.h"
+#include "point_reader/pointreader.h"
 #include "ui_mainwindow.h"
 
 
@@ -78,14 +79,19 @@ void MainWindow::on_btn_ChooseFile_clicked() {
 
 // Loading and rendering points.
 void MainWindow::on_btn_LoadPoints_clicked() {
-    // Reading points, calculating a voxel mesh and rendering points.
+    // Reading points.
     const std::string path = ui->tbx_FileName->text().toStdString();                              // Getting the path to the LAS file.
-    LocalSymmetry::readPoints(path);                                                              // Reading points from the LAS file.
+    std::vector<Point<float>> pointsLAS = PointReader::readPointsFromLAS(path);                   // Reading points from the LAS file.
+    LocalSymmetry::setPoints(pointsLAS);
+
+    // Calculating a voxel mesh and rendering points.
     const VoxelMesh& voxelMesh = LocalSymmetry::getVoxelMesh();                                   // Getting voxel mesh to find extreme points.
     const std::vector<Point<float>>& points = LocalSymmetry::getPoints();                         // Getting LAS points.
     const std::vector<PositionFromPlane> positions(points.size(), PositionFromPlane::undefined);  // Positions from a non-existent plane in the beginning are undefined.
     ui->openGLWidget->setPoints(points, positions);                                               // Rendering points in OpenGL.
     ui->openGLWidget->setVoxelMesh(voxelMesh);                                                    // Voxel mesh setting in OpenGL.
+    ui->openGLWidget->setRenderSymmetryAxis(false);                                               // Disabling symmetry axis rendering in OpenGL.
+    ui->openGLWidget->setRenderSymmetryPlane(false);                                              // Disabling symmetry plane rendering in OpenGL.
 
     // Basic description dump in the console.
     ui->tbx_Console->moveCursor(QTextCursor::End);
@@ -149,6 +155,9 @@ void MainWindow::on_btn_CalculateVoxels_clicked() {
     auto voxels = LocalSymmetry::getVoxels();                    // Getting voxels from the voxel mesh.
     auto points = LocalSymmetry::getPoints();                    // Getting LAS points.
     ui->openGLWidget->setVoxels(voxels, voxelMesh, std::vector<PositionFromPlane>(voxelMesh.voxelCount, PositionFromPlane::undefined));  // Setting points and rendering in OpenGL.
+    ui->openGLWidget->setRenderSymmetryAxis(false);              // Disabling symmetry axis rendering in OpenGL.
+    ui->openGLWidget->setRenderSymmetryPlane(false);             // Disabling symmetry plane rendering in OpenGL.
+    ui->openGLWidget->setPoints(points, std::vector<PositionFromPlane>(points.size(), PositionFromPlane::undefined));
 
     if (voxelMesh.voxelCount > 0) {
         // Printing data in the console.
@@ -237,19 +246,16 @@ void MainWindow::on_btn_FindReflectionSymmetries_clicked() {
         voxelMesh.voxelSideSize
     );
 
-    // Calculation of line segments betweeen all pairs of points.
-    std::vector<LineSegment> lineSegments = ReflectionSymmetry::calculateLineSegmentsBetweenPoints(points, tolerance);
-    const int minimumClusterSize = ui->cbx_MinimumClusterSize->value();
-    const int minimumPartialClusterSize = ui->cbx_MinimumPartialClusterSize->value();
-
     // Finding reflection symmetries.
+    const int minimumClusterSize = ui->cbx_MinimumClusterSize->value();
     auto timeStart = std::chrono::steady_clock::now();
-    reflectionSymmetries = ReflectionSymmetry::calculateReflectionSymmetries(lineSegments, tolerance, minimumClusterSize);
+    reflectionSymmetries = ReflectionSymmetry::calculateReflectionSymmetriesToResult(points, tolerance, minimumClusterSize);
     auto timeEnd = std::chrono::steady_clock::now();
 
     // Finding partial symmetries.
+    const int minimumPartialClusterSize = ui->cbx_MinimumPartialClusterSize->value();
     auto timeStartPartial = std::chrono::steady_clock::now();
-    partialReflectionSymmetries = ReflectionSymmetry::findPartialSymmetries(reflectionSymmetries, minimumPartialClusterSize);
+//    partialReflectionSymmetries = ReflectionSymmetry::findPartialSymmetries(reflectionSymmetries, minimumPartialClusterSize);
     auto timeEndPartial = std::chrono::steady_clock::now();
 
     // Time calculation.
@@ -267,9 +273,9 @@ void MainWindow::on_btn_FindReflectionSymmetries_clicked() {
         }
         // Adding all reflection symmetries to the combobox.
         for (unsigned long long i = 0; i < reflectionSymmetries.size(); i++) {
-            Plane plane = reflectionSymmetries[i].getPlane();
-            QString str = "(" + QString::number(i) + ")  " + QString::fromStdString(plane.toString());
-            ui->cbx_ReflectionSymmetries->addItem(str);
+//            Plane plane = reflectionSymmetries[i].getPlane();
+//            QString str = "(" + QString::number(i) + ")  " + QString::fromStdString(plane.toString());
+//            ui->cbx_ReflectionSymmetries->addItem(str);
         }
         ui->cbx_ReflectionSymmetries->setEnabled(true);
         ui->cbx_RenderLineSegments->setEnabled(true);
@@ -299,14 +305,15 @@ void MainWindow::on_btn_FindReflectionSymmetries_clicked() {
         ui->gbx_RenderReflectionSymmetries->setEnabled(true);
         ui->gbx_RenderRotationalSymmetries->setEnabled(false);
         ui->gbx_LayerVisualization->setEnabled(true);
+
+        ui->openGLWidget->setRenderSymmetryAxis(false);  // Disabling symmetry axis rendering in OpenGL.
     }
 }
 
-// Rotational symmetries search procedure.
-void MainWindow::on_btn_FindRotationalSymmetries_clicked() {
+// Rotational symmetries search procedure (brute force).
+void MainWindow::on_btn_FindRotationalSymmetriesBrute_clicked() {
     // Getting a voxel mesh and points.
     VoxelMesh& voxelMesh = ui->openGLWidget->getVoxelMesh();
-    //const int minClusterSize = ui->sbx_InterestingVoxelMinimumClusterSize->value();  // Getting minimum cluster size.
 
     // Time measuring start.
     auto timeStart = std::chrono::steady_clock::now();
@@ -344,6 +351,7 @@ void MainWindow::on_btn_FindRotationalSymmetries_clicked() {
         ui->tbx_Console->moveCursor(QTextCursor::End);
 
         ui->gbx_RenderRotationalSymmetries->setEnabled(true);
+        ui->openGLWidget->setRenderSymmetryPlane(false);  // Disabling symmetry axis rendering in OpenGL.
     }
     else {
         QMessageBox msg(QMessageBox::Warning,
@@ -353,6 +361,43 @@ void MainWindow::on_btn_FindRotationalSymmetries_clicked() {
         msg.exec();
         return;
     }
+}
+
+// Rotational symmetries search procedure (wise).
+void MainWindow::on_btn_FindRotationalSymmetries_clicked() {
+    auto& voxels = LocalSymmetry::getVoxels();
+
+    // Retrieving tolerances from the GUI.
+    const double lengthTolerance = ui->sbx_RotationalLengthTolerance->value();
+    const double angleTolerance = ui->sbx_RotationalAngleTolerance->value();
+
+    // Retrieving interesting voxel points.
+    VoxelMesh voxelMesh = LocalSymmetry::getVoxelMesh();
+//    std::vector<Point<float>> points = Voxel::getInterestingPointsFromVoxels(
+//        voxels,
+//        voxelMesh.voxelSideSize
+//    );
+    const std::vector<Point<float>>& points = LocalSymmetry::getPoints();
+
+    // Finding reflection symmetries.
+    auto timeStart = std::chrono::steady_clock::now();
+    rotationalSymmetriesWise = RotationalSymmetry::calculateRotationalSymmetries(points, lengthTolerance, angleTolerance);
+    auto timeEnd = std::chrono::steady_clock::now();
+
+    // Time calculation.
+    const int milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(timeEnd - timeStart).count();
+
+    // Data output in the console.
+    ui->tbx_Console->moveCursor(QTextCursor::End);
+    ui->tbx_Console->setTextColor(QColor(0, 100, 0));
+    ui->tbx_Console->insertPlainText("ROTATIONAL SYMMETRIES SEARCH PROCEDURE\n");
+    ui->tbx_Console->setTextColor(QColor(0, 0, 0));
+    ui->tbx_Console->insertPlainText("Number of rotational symmetries: " + QString::number(reflectionSymmetries.size()) + "\n");
+    ui->tbx_Console->insertPlainText("Elapsed time for rotational symmetries: " + QString::number(milliseconds) + " ms\n\n");
+    ui->tbx_Console->moveCursor(QTextCursor::End);
+
+    ui->openGLWidget->setRenderSymmetryPlane(false);  // Disabling symmetry axis rendering in OpenGL.
+    ui->openGLWidget->setRenderSymmetryAxis(true);    // Disabling symmetry axis rendering in OpenGL.
 }
 
 
@@ -453,36 +498,36 @@ void MainWindow::on_rb_VisualizationPartialReflectionSymmetries_clicked() {
 void MainWindow::on_cbx_ReflectionSymmetries_currentIndexChanged(int index) {
     if (index != -1) {
         // Getting line segments and the plane.
-        std::vector<LineSegment> lineSegments = reflectionSymmetries[index].getLineSegments();
-        const Plane plane = reflectionSymmetries[index].getPlane();
+//        std::vector<LineSegment> lineSegments = reflectionSymmetries[index].getLineSegments();
+//        const Plane plane = reflectionSymmetries[index].getPlane();
 
-        // Setting and rendering points in OpenGL.
-        const std::vector<Point<float>>& points = LocalSymmetry::getPoints();                                                       // Getting LAS points.
-        const std::vector<PositionFromPlane>& positions = reflectionSymmetries[index].calculatePositionsFromPlane(points,& plane);  // Positions in the beginning are neutral.
-        ui->openGLWidget->setPoints(points, positions);
-        ui->openGLWidget->setLineSegments(lineSegments, plane);
+//        // Setting and rendering points in OpenGL.
+//        const std::vector<Point<float>>& points = LocalSymmetry::getPoints();                                                       // Getting LAS points.
+//        const std::vector<PositionFromPlane>& positions = reflectionSymmetries[index].calculatePositionsFromPlane(points, &plane);  // Positions in the beginning are neutral.
+//        ui->openGLWidget->setPoints(points, positions);
+//        ui->openGLWidget->setLineSegments(lineSegments, plane);
 
-        // Voxel resetting.
-        std::vector<Voxel> voxels = reflectionSymmetries[index].getVoxels();
-        std::vector<Voxel>& openGLvoxels = ui->openGLWidget->getVoxels();
-        VoxelMesh voxelMesh = LocalSymmetry::getVoxelMesh();
-        for (Voxel& voxel : openGLvoxels) {
-            voxel.setInSymmetry(false);
-        }
+//        // Voxel resetting.
+//        std::vector<Voxel> voxels = reflectionSymmetries[index].getVoxels();
+//        std::vector<Voxel>& openGLvoxels = ui->openGLWidget->getVoxels();
+//        VoxelMesh voxelMesh = LocalSymmetry::getVoxelMesh();
+//        for (Voxel& voxel : openGLvoxels) {
+//            voxel.setInSymmetry(false);
+//        }
 
-        // Visualization of a voxel in the symmetry.
-        for (const Voxel& v : voxels) {
-            int index = v.getZ() * voxelMesh.voxelY * voxelMesh.voxelX +
-                        v.getY() * voxelMesh.voxelX +
-                        v.getX();
+//        // Visualization of a voxel in the symmetry.
+//        for (const Voxel& v : voxels) {
+//            int index = v.getZ() * voxelMesh.voxelY * voxelMesh.voxelX +
+//                        v.getY() * voxelMesh.voxelX +
+//                        v.getX();
 
-            openGLvoxels[index].setInSymmetry(true);
-        }
+//            openGLvoxels[index].setInSymmetry(true);
+//        }
 
-        // Calculating the voxel positions.
-        std::vector<Point<float>> voxelPoints = Voxel::getInterestingPointsFromVoxels(LocalSymmetry::getVoxels(), voxelMesh.voxelSideSize, false);
-        std::vector<PositionFromPlane> voxelPositions = reflectionSymmetries[index].calculatePositionsFromPlane(voxelPoints,& plane);
-        ui->openGLWidget->setVoxelPositions(voxelPositions);
+//        // Calculating the voxel positions.
+//        std::vector<Point<float>> voxelPoints = Voxel::getInterestingPointsFromVoxels(LocalSymmetry::getVoxels(), voxelMesh.voxelSideSize, false);
+//        std::vector<PositionFromPlane> voxelPositions = reflectionSymmetries[index].calculatePositionsFromPlane(voxelPoints, &plane);
+//        ui->openGLWidget->setVoxelPositions(voxelPositions);
 
         ui->openGLWidget->update();
     }
@@ -518,6 +563,11 @@ void MainWindow::on_cbx_ReflectionSymmetriesPartial_currentIndexChanged(int inde
             openGLvoxels[index].setInSymmetry(true);
         }
 
+        // Calculating the voxel positions.
+        std::vector<Point<float>> voxelPoints = Voxel::getInterestingPointsFromVoxels(LocalSymmetry::getVoxels(), voxelMesh.voxelSideSize, false);
+        std::vector<PositionFromPlane> voxelPositions = partialReflectionSymmetries[index].calculatePositionsFromPlane(voxelPoints, &plane);
+        ui->openGLWidget->setVoxelPositions(voxelPositions);
+
         ui->openGLWidget->update();
     }
 }
@@ -525,23 +575,23 @@ void MainWindow::on_cbx_ReflectionSymmetriesPartial_currentIndexChanged(int inde
 // Moving the camera to the top of the reflection symmetry.
 void MainWindow::on_btn_ReflectionSymmetryTopView_clicked() {
     // Getting the basic data.
-    const VoxelMesh& voxelMesh = LocalSymmetry::getVoxelMesh();
-    const int index = ui->cbx_ReflectionSymmetries->currentIndex();
-    const Plane plane = reflectionSymmetries[index].getPlane();
-    std::tuple<LAS::Data::Vector3d, double, double, double> planeParams = Plane::calculateStartPoint(plane, voxelMesh);
-    LAS::Data::Vector3d start = std::get<0>(planeParams);
-    double lengthX = std::get<2>(planeParams);
-    double lengthY = std::get<3>(planeParams);
+//    const VoxelMesh& voxelMesh = LocalSymmetry::getVoxelMesh();
+//    const int index = ui->cbx_ReflectionSymmetries->currentIndex();
+//    const Plane plane = reflectionSymmetries[index].getPlane();
+//    std::tuple<Vector3d, double, double, double> planeParams = Plane::calculateStartPoint(plane, voxelMesh);
+//    Vector3d start = std::get<0>(planeParams);
+//    double lengthX = std::get<2>(planeParams);
+//    double lengthY = std::get<3>(planeParams);
 
-    // Moving camera to the symmetry.
-    ui->openGLWidget->resetCamera();
-    if (plane.calculateParallelVector().y < 0) {
-        ui->openGLWidget->moveCameraToPoint(start.x + lengthX, start.y - lengthY, -voxelMesh.maxZ - 50);
-    }
-    else {
-        ui->openGLWidget->moveCameraToPoint(start.x + lengthX, start.y + lengthY, -voxelMesh.maxZ - 50);
-    }
-    ui->openGLWidget->rotateCamera(-90.0f, 0.0f, 0.0f);
+//    // Moving camera to the symmetry.
+//    ui->openGLWidget->resetCamera();
+//    if (plane.calculateParallelVector().getY() < 0) {
+//        ui->openGLWidget->moveCameraToPoint(start.getX() + lengthX, start.getY() - lengthY, -voxelMesh.maxZ - 50);
+//    }
+//    else {
+//        ui->openGLWidget->moveCameraToPoint(start.getX() + lengthX, start.getY() + lengthY, -voxelMesh.maxZ - 50);
+//    }
+//    ui->openGLWidget->rotateCamera(-90.0f, 0.0f, 0.0f);
     ui->openGLWidget->update();
 }
 
@@ -582,7 +632,7 @@ void MainWindow::on_cbx_RotationalSymmetries_currentIndexChanged(int index) {
     Point<double> symmetryAxis = rotationalSymmetries[index].getSymmetryAxis() * (double)voxelMesh.voxelSideSize;
     symmetryAxis.setX(symmetryAxis.getX() + voxelMesh.minX);
     symmetryAxis.setY(symmetryAxis.getY() + voxelMesh.minY);
-    ui->openGLWidget->setSymmetryAxis(symmetryAxis);
+    ui->openGLWidget->setSymmetryAxis(symmetryAxis, true);
     ui->openGLWidget->update();
 }
 

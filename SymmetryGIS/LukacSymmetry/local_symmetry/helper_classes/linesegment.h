@@ -1,6 +1,9 @@
 #ifndef LINESEGMENT_H
 #define LINESEGMENT_H
 
+#include <string>
+#include <vector>
+
 #include "point.h"
 
 
@@ -30,8 +33,11 @@ namespace Symmetry {
         static Point<float>* calculateIntersetion(LineSegment& l1, LineSegment& l2, const double tolerance);                      // Calculation of an intersetion point between the two line segments.
 
         // OBJECT METHODS
-        Point<float> getCenterPoint() const;             // Calculating the center point of the line segment.
-        bool operator == (const LineSegment& ls) const;  // Checking whether the two line segments are equal.
+        std::string toString() const;                        // Converting line segment to string.
+        Point<float> getCenterPoint() const;                 // Calculating the center point of the line segment.
+        bool operator == (const LineSegment& ls) const;      // Checking whether the two line segments are equal.
+        bool operator < (const LineSegment& ls) const;       // Checking if line segment is smaller than the other.
+        double calculateAngle(const LineSegment& ls) const;  // Calculating the angle between the two line segments.
     };
 };
 

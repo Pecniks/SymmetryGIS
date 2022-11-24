@@ -1,6 +1,8 @@
 #include <pch.h>
-#include "voxel.h"
+#include <cmath>
+
 #include "point.h"
+#include "voxel.h"
 
 using namespace Symmetry;
 

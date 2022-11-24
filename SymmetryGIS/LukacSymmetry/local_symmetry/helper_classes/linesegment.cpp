@@ -1,4 +1,8 @@
 #include <pch.h>
+#include <cmath>
+#include <numbers>
+#include <sstream>
+
 #include "linesegment.h"
 #include "tolerance.h"
 
@@ -73,14 +77,14 @@ bool LineSegment::doLineSegmentsIntersect(LineSegment& l1, LineSegment& l2, cons
     Point<float> P4 = l2.getP2();
 
     // Calculating vectors between points.
-    LAS::Data::Vector3d V12 = P2 - P1;
-    LAS::Data::Vector3d V34 = P4 - P3;
-    LAS::Data::Vector3d V31 = P1 - P3;
+    Vector3f V12 = P2 - P1;
+    Vector3f V34 = P4 - P3;
+    Vector3f V31 = P1 - P3;
 
     // Coefficient calculation.
-    double D = (V12.x * V34.y) - (V12.y * V34.x);
-    double A = (V34.x * V31.y) - (V34.y * V31.x);
-    double B = (V12.x * V31.y) - (V12.y * V31.x);
+    auto D = (V12.getX() * V34.getY()) - (V12.getY() * V34.getX());
+    auto A = (V34.getX() * V31.getY()) - (V34.getY() * V31.getX());
+    auto B = (V12.getX() * V31.getY()) - (V12.getY() * V31.getX());
 
     // If D == 0, the line segments are parallel, therefore,
     // they do not have an intersection point.
@@ -89,8 +93,8 @@ bool LineSegment::doLineSegmentsIntersect(LineSegment& l1, LineSegment& l2, cons
     }
 
     // Normalizing coefficients.
-    double Ua = A / D;
-    double Ub = B / D;
+    auto Ua = A / D;
+    auto Ub = B / D;
 
     if (!edgesIncluded &&
         (Tolerance::isInTolerance(Ua, 0, 0.0001) || Tolerance::isInTolerance(Ua, 1, 0.0001) ||
@@ -117,14 +121,14 @@ Point<float>* LineSegment::calculateIntersetion(LineSegment& l1, LineSegment& l2
     Point<float> P4 = l2.getP2();
 
     // Calculating vectors between points.
-    LAS::Data::Vector3d V12 = P2 - P1;
-    LAS::Data::Vector3d V34 = P4 - P3;
-    LAS::Data::Vector3d V31 = P1 - P3;
+    Vector3f V12 = P2 - P1;
+    Vector3f V34 = P4 - P3;
+    Vector3f V31 = P1 - P3;
 
     // Coefficient calculation.
-    double D = (V12.x * V34.y) - (V12.y * V34.x);
-    double A = (V34.x * V31.y) - (V34.y * V31.x);
-    double B = (V12.x * V31.y) - (V12.y * V31.x);
+    auto D = (V12.getX() * V34.getY()) - (V12.getY() * V34.getX());
+    auto A = (V34.getX() * V31.getY()) - (V34.getY() * V31.getX());
+    auto B = (V12.getX() * V31.getY()) - (V12.getY() * V31.getX());
 
     // If D == 0, the line segments are parallel, therefore,
     // they do not have an intersection point.
@@ -133,17 +137,17 @@ Point<float>* LineSegment::calculateIntersetion(LineSegment& l1, LineSegment& l2
     }
 
     // Normalizing coefficients.
-    double Ua = A / D;
-    double Ub = B / D;
+    auto Ua = A / D;
+    auto Ub = B / D;
 
     // If the two line segment intersect,
     // true is returned as a result.
     if (Ua >= 0 && Ua <= 1 && Ub >= 0 && Ub <= 1) {
-        double x = P1.getX() + Ua * (P2.getX() - P1.getX());
-        double y = P1.getY() + Ua * (P2.getY() - P1.getY());
-        double z = P1.getZ() + Ua * (P2.getZ() - P1.getZ());
+        auto x = P1.getX() + Ua * (P2.getX() - P1.getX());
+        auto y = P1.getY() + Ua * (P2.getY() - P1.getY());
+        auto z = P1.getZ() + Ua * (P2.getZ() - P1.getZ());
 
-        return new Point<float>((float)x, (float)y, (float)z);
+        return new Point<float>(x, y, z);
     }
 
     return nullptr;
@@ -152,6 +156,13 @@ Point<float>* LineSegment::calculateIntersetion(LineSegment& l1, LineSegment& l2
 
 
 // OBJECT METHODS
+// Converting line segment to string.
+std::string LineSegment::toString() const {
+    std::stringstream ss;
+    ss << "LineSegment(" << p1.toString() << ", " << p2.toString() << ")";
+    return ss.str();
+}
+
 // Calculating the center point of the line segment.
 Point<float> LineSegment::getCenterPoint() const {
     return (
@@ -169,4 +180,24 @@ bool LineSegment::operator == (const LineSegment& ls) const {
         (p1 == ls.getP1() && p2 == ls.getP2()) ||
         (p1 == ls.getP2() && p2 == ls.getP1())
     );
+}
+
+// Checking if line segment is smaller than the other.
+bool LineSegment::operator < (const LineSegment& ls) const {
+    return p1.getX() < ls.p1.getX() || p1.getY() < ls.p1.getY() || p1.getZ() < ls.p1.getZ() ||
+           p2.getX() < ls.p2.getX() || p2.getY() < ls.p2.getY() || p2.getZ() < ls.p2.getZ();
+}
+
+// Calculating the angle between the two line segments.
+double LineSegment::calculateAngle(const LineSegment& ls) const {
+    auto v1 = p2 - p1;
+    auto v2 = ls.p2 - ls.p1;
+
+    auto dot = (float)(v1.getX() * v2.getX()) + (float)(v1.getY() * v2.getY());
+    auto det = (float)(v1.getX() * v2.getY()) - (float)(v1.getY() * v2.getX());
+    auto angle = std::atan2(det, dot);
+
+    // Angle lies inside the interval [0, 2 * PI].
+    //return static_cast<double>(angle >= 0 ? angle : angle + M_PI * 2);
+    return static_cast<double>(angle >= 0 ? angle : angle + std::numbers::pi * 2);
 }
