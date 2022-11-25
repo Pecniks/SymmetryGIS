@@ -7,6 +7,7 @@
 #include <GF/Extensions/Extensions.h>
 
 #include "SymLib/symetry3d.h"
+#include "LukacSymmetry/local_symmetry/reflectionsymmetry.h"
 
 #pragma comment(lib, "version.lib")
 #pragma comment (lib, "UxTheme.lib")
@@ -807,6 +808,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 					{
 						for(auto polygon : shape->GetComposedPolygons())
 						{
+							//TODO: call Symmetry Algorithm
 							//polygon.
 								if(polygon.Contains2d(tmp))
 									list.emplace_back(tmp.X, tmp.Y, tmp.Z);
@@ -838,26 +840,59 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 		}
 	});
 
+	//auto ReflectionSymmetry = [&]() mutable
+	//{
+	//	const double tolerance = 0.1;  // Algorithm tolerance.
+	//	const double Csize = 5;  // cluster size
+	//	const int voxelLength = 5; // 5 metrov
+	//	const int minimumClusterSize = 5; //ui->cbx_MinimumClusterSize->value();
+
+	//	Symmetry::LocalSymmetry::calculateVoxelMeshByVoxelSideLength(voxelLength);
+	//	auto voxels = Symmetry::LocalSymmetry::getVoxels();
+
+	//	// Retrieving interesting voxel points.
+	//	Symmetry::VoxelMesh voxelMesh = Symmetry::LocalSymmetry::getVoxelMesh();
+	//	std::vector<Symmetry::Point<float>> points = Symmetry::Voxel::getInterestingPointsFromVoxels(voxels, (float)voxelMesh.voxelSideSize);
+
+	//	// Calculation of line segments betweeen all pairs of points.
+	//	std::vector<Symmetry::LineSegment> lineSegments = Symmetry::ReflectionSymmetry::calculateLineSegmentsBetweenPoints(points, tolerance);
+	//	
+	//	// Finding reflection symmetries.
+	//	auto reflectionSymmetries = Symmetry::ReflectionSymmetry::calculateReflectionSymmetries(lineSegments, tolerance, minimumClusterSize);
+
+	//	int stop = 1;
+	//	return reflectionSymmetries;
+	//};
+
 	ribbon->SetOnCommandExecute(ID_SYMMETRY_LUKAC, [&] 
 	{
 		APPRESULT_DEV_INFORMATION("Lukac");
+		const double tolerance = 0.1;  // Algorithm tolerance.
+		const int minimumClusterSize = 5; //ui->cbx_MinimumClusterSize->value();
+
 
 		LAS::File lasfile(m_LASFilename);
-		std::vector<LAS::Data::Vector3d> list;
+		std::vector<Symmetry::Point<float>> list;		
 		for (size_t i=0; i < lasfile.size(); i++)
 		{
 			auto pt = lasfile.TransformCoord(lasfile[i]);
 			Geometry::Point2d tmp(pt.x, pt.y);
 			if (SelectionBB.Contains(tmp))
 			{
-
-
-				list.push_back(pt);
-
-				//ReflectionalSymmetry
-
+				list.emplace_back((float)pt.x, (float)pt.y, (float)pt.z);
 			}
-		}		
+		}
+
+		Symmetry::LocalSymmetry::setPoints(list);
+		Symmetry::LocalSymmetry::calculateVoxelMeshByVoxelSideLength(1);  // Calculating the voxel mesh by maximum voxel count.
+				
+		int superInterestingCount = 0;
+		int interestingCount = 0;
+		Symmetry::LocalSymmetry::findInterestingVoxels(minimumClusterSize, superInterestingCount, interestingCount);
+
+		auto res = Symmetry::ReflectionSymmetry::calculateReflectionSymmetriesToResult(list, tolerance, minimumClusterSize);
+		/*std::vector<
+		auto result = Symmetry::ReflectionSymmetry::calculateReflectionSymmetries();*/
 		//TODO: call Lukac alg with selected points.
 		int stop = 1;
 	});
