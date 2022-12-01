@@ -139,7 +139,7 @@
 #include <Private/Spatial/Shape/ExpressionSolver.h>
 #include <Private/Spatial/Shape/WKB/WkbHelpers.h>
 #include <Private/Spatial/Shape/ShapeUtility.h>
-#include <Private/Spatial/Shape/WKT/WKTParser.h>
+//#include <Private/Spatial/Shape/WKT/WKTParser.h>
 #include <Private/Spatial/Shape/Backends/Geopackage.h>
 #include <Private/Spatial/Shape/Backends/Shapefile.h>
 #include <Private/Spatial/Shape/Backends/GeoJson.h>
@@ -155,7 +155,7 @@
 
 
 // 3rd party
-#include <pqxx/result_iterator.hxx>
+//#include <pqxx/result_iterator.hxx>
 #define NANODBC_ENABLE_UNICODE
 #include <nanodbc/nanodbc.h>
 #include <fmt/format.h>

@@ -5,6 +5,7 @@
 #include <vector>
 
 #include <GF/Extensions/Extensions.h>
+#include <LAS\Utils\FileUtils.h>
 
 #include "SymLib/symetry3d.h"
 #include "LukacSymmetry/local_symmetry/reflectionsymmetry.h"
@@ -61,7 +62,7 @@ std::vector<Point3d> GetBuildingPoints(const std::string& classifiedLasPath, Sha
 
 	// Filter out points that belong to the building
 	std::vector<Point3d> points;
-	lasObject->Filter(bbox, true, [&](LAS::const_Point point) {
+	lasObject->Filter(bbox, true, [&](LAS::const_Point point, uint64_t index) {
 		auto ptNative = Point3i64(point.X(), point.Y(), point.Z());//.convert_from(point.XYZ()).cast<Point3i64>();
 		auto ptTransformed = lasObject->TransformCoord(ptNative);
 		for (auto& polygon : polygons) {
@@ -864,7 +865,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 	//	return reflectionSymmetries;
 	//};
 
-	ribbon->SetOnCommandExecute(ID_SYMMETRY_LUKAC, [&] 
+	ribbon->SetOnCommandExecute(ID_SYMMETRY_LUKAC, [&]
 	{
 		APPRESULT_DEV_INFORMATION("Lukac");
 		const double tolerance = 0.1;  // Algorithm tolerance.
@@ -872,8 +873,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 
 
 		LAS::File lasfile(m_LASFilename);
-		std::vector<Symmetry::Point<float>> list;		
-		for (size_t i=0; i < lasfile.size(); i++)
+		std::vector<Symmetry::Point<float>> list;
+		for (size_t i = 0; i < lasfile.size(); i++)
 		{
 			auto pt = lasfile.TransformCoord(lasfile[i]);
 			Geometry::Point2d tmp(pt.x, pt.y);
@@ -882,6 +883,41 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR cmdArgs, int nShowWnd)
 				list.emplace_back((float)pt.x, (float)pt.y, (float)pt.z);
 			}
 		}
+
+		LAS::HeaderData::NumberOfPointsByReturn_T returns({ list.size(),0,0,0,0,0,0,0,0,0,0,0,0,0,0 });
+		//LAS::HeaderData hdr = LAS::Utils::HeaderCreator()
+		auto hdr = LAS::Utils::HeaderCreator()
+			.HeaderInformation(LAS::Utils::HeaderInfo(1, 4))
+			.PointInformation(LAS::Utils::PointInfo(6))
+			.GeneratingSoftware("SymmetrieGIS")
+			.SystemIdentifier("UM FERI Gemma Laboratory")
+			.NumberOfPoints(list.size(), 1)
+			.BoundingBox(LAS::Data::BoundingBox6d{ {lasfile.BoundingBox().Min.x, lasfile.BoundingBox().Min.y, lasfile.BoundingBox().Min.z},
+				{lasfile.BoundingBox().Max.x, lasfile.BoundingBox().Max.y, lasfile.BoundingBox().Max.z} })
+			.Offset(LAS::Utils::Measure(lasfile.Header().Offset.x),
+				LAS::Utils::Measure(lasfile.Header().Offset.y),
+				LAS::Utils::Measure(lasfile.Header().Offset.z))
+			.ScaleFactor(LAS::Utils::Measure(0.001)); //Preserve up to mm details
+
+		LAS::File las_out("SOFPoints.las", hdr);
+
+		
+		auto las_pt = las_out.begin();
+		size_t index = 0;
+		for (auto& src_pt : list) 	    
+		{
+			//Reverse transform it into integer values
+			auto pt = las_out.ReverseTransform(LAS::Data::Vector3d(src_pt.getX(), src_pt.getY(), src_pt.getZ()));
+
+			(*las_pt).X(pt.x)
+				.Y(pt.y)
+				.Z(pt.z)
+				.Classification(6);
+			++las_pt;
+		}
+		
+		las_out.Save(LAS::Header::Update);
+
 
 		Symmetry::LocalSymmetry::setPoints(list);
 		Symmetry::LocalSymmetry::calculateVoxelMeshByVoxelSideLength(1);  // Calculating the voxel mesh by maximum voxel count.
